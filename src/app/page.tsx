@@ -52,6 +52,11 @@ export default function HomePage() {
   const scrollRef = useRef<HTMLElement>(null);
   const [activeDrinkIndex, setActiveDrinkIndex] = useState(0);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const selectedDrinks = drinks.filter((drink) => (quantities[drink.id] ?? 0) > 0);
+  const totalDrinks = selectedDrinks.reduce(
+    (total, drink) => total + (quantities[drink.id] ?? 0),
+    0,
+  );
 
   function addDrink(id: string) {
     setQuantities((current) => ({
@@ -105,9 +110,38 @@ export default function HomePage() {
       onScroll={updateActiveDrink}
       ref={scrollRef}
     >
-      <div className="pointer-events-none fixed left-5 top-[calc(env(safe-area-inset-top)+20px)] z-20 text-white drop-shadow-[0_10px_28px_rgba(0,0,0,0.55)]">
+      <div className="pointer-events-none fixed left-5 top-[calc(env(safe-area-inset-top)+20px)] z-30 text-white drop-shadow-[0_10px_28px_rgba(0,0,0,0.55)]">
         <LogoMark className="h-11 w-12" />
       </div>
+
+      {totalDrinks > 0 ? (
+        <button
+          className="fixed right-4 top-[calc(env(safe-area-inset-top)+18px)] z-30 flex h-14 max-w-[calc(100vw-96px)] items-center gap-2.5 rounded-full border border-white/15 bg-black/48 pl-4 pr-2.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.32)] backdrop-blur-md transition active:scale-[0.98] sm:right-6"
+          type="button"
+        >
+          <CartIcon className="h-6 w-6 shrink-0" />
+          <span className="text-base font-medium">Корзина</span>
+          <span className="grid h-6 min-w-6 place-items-center rounded-full bg-white px-2 text-sm font-semibold leading-none text-black">
+            {totalDrinks}
+          </span>
+          <span className="ml-0.5 flex -space-x-2">
+            {selectedDrinks.map((drink) => (
+              <span
+                className="relative h-8 w-8 overflow-hidden rounded-full border border-white/70 bg-black"
+                key={drink.id}
+              >
+                <Image
+                  src={drink.image}
+                  alt=""
+                  fill
+                  sizes="32px"
+                  className="object-cover"
+                />
+              </span>
+            ))}
+          </span>
+        </button>
+      ) : null}
 
       <div
         aria-label="Навигация по напиткам"
@@ -146,6 +180,32 @@ export default function HomePage() {
         />
       ))}
     </main>
+  );
+}
+
+function CartIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M5 6h16l-1.6 8.2a2 2 0 0 1-2 1.6H8.3a2 2 0 0 1-2-1.7L5 3H2"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M9 20.5h.01M17 20.5h.01"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="3"
+      />
+    </svg>
   );
 }
 

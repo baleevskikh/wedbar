@@ -2,13 +2,19 @@
 
 import Link from "next/link";
 
-export function CartHeader({ onClearCart }: { onClearCart: () => void }) {
+export function CartHeader({
+  onClearCart,
+  table,
+}: {
+  onClearCart: () => void;
+  table: number;
+}) {
   return (
     <header className="sticky top-0 z-20 bg-[linear-gradient(180deg,rgba(0,0,0,0.92),rgba(0,0,0,0.72)_72%,rgba(0,0,0,0))] px-4 pb-5 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-sm sm:px-6">
       <div className="relative flex min-h-11 items-center justify-between">
         <Link
           className="relative z-10 inline-flex min-h-11 items-center text-white/72 transition active:scale-[0.98] active:text-white"
-          href="/"
+          href={`/?table=${table}`}
           aria-label="Вернуться к меню"
         >
           <svg
@@ -28,7 +34,7 @@ export function CartHeader({ onClearCart }: { onClearCart: () => void }) {
         </Link>
 
         <div className="pointer-events-none absolute inset-x-12 top-1/2 -translate-y-1/2 text-center">
-          <p className="text-base font-semibold leading-5 text-white">К столу №N</p>
+          <p className="text-base font-semibold leading-5 text-white">К столу №{table}</p>
           <p className="mt-0.5 text-sm font-medium leading-4 text-white/48">
             ~5-15 мин
           </p>

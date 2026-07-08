@@ -1,20 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "WedBar",
   description: "Dark cocktail ordering experience for a wedding bar.",
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({
@@ -23,10 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="ru"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="ru" className="h-full antialiased">
       <body className="min-h-full bg-black">
         <div className="mx-auto min-h-dvh w-full max-w-[var(--content-max-width)] overflow-hidden bg-black">
           {children}

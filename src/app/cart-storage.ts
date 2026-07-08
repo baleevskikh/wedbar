@@ -1,4 +1,6 @@
 export const CART_STORAGE_KEY = "wedbar.cart";
+export const ACTIVE_ORDER_STORAGE_KEY = "wedbar.activeOrderId";
+export const ORDER_HISTORY_STORAGE_KEY = "wedbar.orderHistory";
 const CART_CHANGED_EVENT = "wedbar.cart.changed";
 
 export type CartQuantities = Record<string, number>;
@@ -68,4 +70,48 @@ export function subscribeCart(listener: () => void) {
 
 export function getServerCartSnapshot(): CartQuantities {
   return EMPTY_CART;
+}
+
+export function readActiveOrderId() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.localStorage.getItem(ACTIVE_ORDER_STORAGE_KEY);
+}
+
+export function writeActiveOrderId(orderId: string | null) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (orderId) {
+    window.localStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, orderId);
+  } else {
+    window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+  }
+}
+
+export function readOrderHistory() {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(ORDER_HISTORY_STORAGE_KEY) ?? "[]");
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addOrderToHistory(orderId: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const next = [orderId, ...readOrderHistory().filter((id) => id !== orderId)].slice(0, 12);
+  window.localStorage.setItem(ORDER_HISTORY_STORAGE_KEY, JSON.stringify(next));
 }

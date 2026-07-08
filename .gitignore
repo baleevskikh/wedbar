@@ -20,6 +20,12 @@
 # production
 /build
 
+# app data
+/data/wedbar.db
+/data/wedbar.db-*
+/data/uploads/*
+!/data/uploads/.gitkeep
+
 # misc
 .DS_Store
 *.pem

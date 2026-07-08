@@ -2,13 +2,23 @@
 
 import { useRef, useState } from "react";
 
-export function SlideToOrder({ onComplete }: { onComplete: () => void }) {
+export function SlideToOrder({
+  disabled,
+  onComplete,
+}: {
+  disabled: boolean;
+  onComplete: () => void;
+}) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
   const [knobOffset, setKnobOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
   function updateProgress(clientX: number) {
+    if (disabled) {
+      return;
+    }
+
     const track = trackRef.current;
 
     if (!track) {
@@ -24,6 +34,10 @@ export function SlideToOrder({ onComplete }: { onComplete: () => void }) {
   }
 
   function completeIfReady() {
+    if (disabled) {
+      return;
+    }
+
     if (progress >= 84) {
       setProgress(100);
       setKnobOffset((trackRef.current?.getBoundingClientRect().width ?? 64) - 64);
@@ -38,7 +52,8 @@ export function SlideToOrder({ onComplete }: { onComplete: () => void }) {
   return (
     <div
       aria-label="Потянуть для оформления заказа"
-      className="relative h-16 touch-pan-y overflow-hidden rounded-full bg-white text-black"
+      className="relative h-16 touch-pan-y overflow-hidden rounded-full bg-white text-black aria-disabled:opacity-60"
+      aria-disabled={disabled}
       onPointerDown={(event) => {
         setIsDragging(true);
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -59,6 +74,9 @@ export function SlideToOrder({ onComplete }: { onComplete: () => void }) {
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
+          if (disabled) {
+            return;
+          }
           setProgress(100);
           setKnobOffset((trackRef.current?.getBoundingClientRect().width ?? 64) - 64);
           onComplete();

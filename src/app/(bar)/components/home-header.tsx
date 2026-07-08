@@ -4,17 +4,22 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { LogoMark } from "../../components/logo-mark";
-import type { Drink } from "../../drinks";
+import { mediaUrl, type Drink } from "../../drinks";
 
 export function HomeHeader({
+  history,
   selectedDrinks,
+  table,
   totalDrinks,
 }: {
+  history: string[];
   selectedDrinks: Drink[];
+  table: number;
   totalDrinks: number;
 }) {
   return (
-    <header className="pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+20px)] z-30 flex h-11 w-full max-w-[var(--content-max-width)] -translate-x-1/2 items-center justify-between gap-4 px-4 sm:px-6">
+    <header className="pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+14px)] z-30 flex w-full max-w-[var(--content-max-width)] -translate-x-1/2 flex-col gap-3 px-4 sm:px-6">
+      <div className="flex h-11 items-center justify-between gap-4">
       <div className="text-white drop-shadow-[0_10px_28px_rgba(0,0,0,0.55)]">
         <LogoMark className="h-11 w-12" />
       </div>
@@ -23,7 +28,7 @@ export function HomeHeader({
         <Link
           aria-label={`Перейти в корзину, ${totalDrinks} напитков`}
           className="pointer-events-auto flex h-11 max-w-[calc(100%_-_96px)] items-center gap-2 rounded-full border border-white/70 bg-white pl-3.5 pr-2 text-black shadow-[0_12px_32px_rgba(0,0,0,0.24)] backdrop-blur-md transition active:scale-[0.98]"
-          href="/cart"
+          href={`/cart?table=${table}`}
         >
           <CartIcon className="h-5 w-5 shrink-0" />
           <span className="ml-0.5 flex -space-x-2">
@@ -33,7 +38,7 @@ export function HomeHeader({
                 key={drink.id}
               >
                 <Image
-                  src={drink.image}
+                  src={mediaUrl(drink.imagePath)}
                   alt=""
                   fill
                   sizes="32px"
@@ -43,6 +48,21 @@ export function HomeHeader({
             ))}
           </span>
         </Link>
+      ) : null}
+      </div>
+
+      {history.length > 0 ? (
+        <div className="pointer-events-auto flex max-w-full gap-2 overflow-x-auto pb-1">
+          {history.slice(0, 4).map((orderId) => (
+            <Link
+              className="shrink-0 rounded-full bg-black/42 px-3 py-1.5 text-xs font-bold text-white ring-1 ring-white/16 backdrop-blur"
+              href={`/order/${orderId}?table=${table}`}
+              key={orderId}
+            >
+              Заказ #{orderId.slice(0, 5)}
+            </Link>
+          ))}
+        </div>
       ) : null}
     </header>
   );

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 
-import type { Drink } from "../../../drinks";
+import { mediaUrl, type Drink } from "../../../drinks";
 
 export type CartItem = {
   drink: Drink;
@@ -27,7 +27,7 @@ export function CartItemList({
             <div className="grid min-w-0 grid-cols-[82px_1fr] gap-4">
               <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-white/8">
                 <Image
-                  src={drink.image}
+                  src={mediaUrl(drink.imagePath)}
                   alt=""
                   fill
                   sizes="82px"

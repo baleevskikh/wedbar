@@ -2,31 +2,32 @@
 
 import Image from "next/image";
 
-import type { Drink } from "../../drinks";
+import { mediaUrl, type Drink } from "../../drinks";
 
 export function DrinkSection({
   addDrink,
   drink,
   index,
+  isOrderingBlocked,
   qty,
   removeDrink,
 }: {
   addDrink: (id: string) => void;
   drink: Drink;
   index: number;
+  isOrderingBlocked: boolean;
   qty: number;
   removeDrink: (id: string) => void;
 }) {
   return (
     <section className="relative h-dvh overflow-hidden [scroll-snap-align:start] [scroll-snap-stop:always]">
       <Image
-        src={drink.image}
+        src={mediaUrl(drink.imagePath)}
         alt={drink.name}
         fill
         priority={index === 0}
         sizes="100vw"
         className="object-cover"
-        placeholder="blur"
       />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.34),rgba(0,0,0,0)_34%,rgba(0,0,0,0.86)_100%)]" />
 
@@ -65,11 +66,12 @@ export function DrinkSection({
               </div>
             ) : (
               <button
-                className="h-14 w-full rounded-2xl bg-white px-5 text-lg font-medium text-black transition active:scale-[0.99] active:bg-white/86"
+                className="h-14 w-full rounded-2xl bg-white px-5 text-lg font-medium text-black transition active:scale-[0.99] active:bg-white/86 disabled:opacity-55"
+                disabled={isOrderingBlocked}
                 onClick={() => addDrink(drink.id)}
                 type="button"
               >
-                Добавить
+                {isOrderingBlocked ? "Заказ уже активен" : "Добавить"}
               </button>
             )}
           </div>

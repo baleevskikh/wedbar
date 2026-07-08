@@ -1,114 +1,224 @@
-type OrderItem = {
-  color: string;
-  name: string;
-  qty: number;
-};
+"use client";
 
-type OrderCard = {
-  id: string;
-  table: number;
-  minutesAgo: number;
-  status: "in_progress" | "pending";
-  items: OrderItem[];
-};
+import { useEffect, useState } from "react";
 
-const orders: OrderCard[] = [
-  {
-    id: "37",
-    table: 7,
-    minutesAgo: 8,
-    status: "in_progress",
-    items: [
-      { color: "bg-[#ffa51a]", name: "Коктейль 1", qty: 3 },
-      { color: "bg-[#ff5d62]", name: "Коктейль 2", qty: 4 },
-      { color: "bg-[#c0c5ad]", name: "Коктейль 3", qty: 1 },
-    ],
-  },
-  {
-    id: "38",
-    table: 12,
-    minutesAgo: 2,
-    status: "pending",
-    items: [
-      { color: "bg-[#ffa51a]", name: "Коктейль 1", qty: 2 },
-      { color: "bg-[#7bc5ff]", name: "Коктейль 4", qty: 1 },
-      { color: "bg-[#ffde59]", name: "Коктейль 5", qty: 2 },
-    ],
-  },
-];
-
-const slots = Array.from({ length: 8 }, (_, index) => orders[index] ?? null);
+import type { Order } from "@/lib/types";
 
 export default function BartenderPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [queued, setQueued] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  const [recipe, setRecipe] = useState<{ name: string; text: string } | null>(null);
+  const [rejecting, setRejecting] = useState<Order | null>(null);
+
+  async function loadOrders() {
+    const response = await fetch("/api/orders?active=1", { cache: "no-store" });
+    const data = (await response.json()) as { orders: Order[]; queued: number };
+    setOrders(data.orders);
+    setQueued(data.queued);
+  }
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadOrders();
+    });
+    const clock = setInterval(() => setNow(Date.now()), 30000);
+    const events = new EventSource("/api/events");
+    events.addEventListener("order.created", loadOrders);
+    events.addEventListener("order.updated", loadOrders);
+    return () => {
+      clearInterval(clock);
+      events.close();
+    };
+  }, []);
+
+  async function patchOrder(orderId: string, body: unknown) {
+    await fetch(`/api/orders/${orderId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    loadOrders();
+  }
+
+  const slots = Array.from({ length: 6 }, (_, index) => orders[index] ?? null);
+
   return (
-    <section className="grid h-dvh grid-cols-4 grid-rows-2 gap-[10px] p-4 pl-[10px]">
+    <section className="grid h-dvh grid-cols-3 grid-rows-2 gap-[10px] p-4 pl-[10px]">
+      {queued > 0 ? (
+        <div className="fixed right-4 top-4 z-20 rounded-full bg-white px-4 py-2 text-sm font-black text-black">
+          В очереди ещё {queued}
+        </div>
+      ) : null}
+
       {slots.map((order, index) =>
         order ? (
-          <OrderTicket key={order.id} order={order} />
+          <OrderTicket
+            key={order.id}
+            onAccept={() => patchOrder(order.id, { action: "accept" })}
+            onReady={() => patchOrder(order.id, { action: "ready" })}
+            onRecipe={setRecipe}
+            onReject={() => setRejecting(order)}
+            now={now}
+            order={order}
+          />
         ) : (
           <EmptySlot key={`empty-${index}`} />
         ),
       )}
+
+      {recipe ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/72 p-6">
+          <div className="max-w-lg rounded-[18px] bg-white p-6 text-black">
+            <h2 className="text-3xl font-black">{recipe.name}</h2>
+            <p className="mt-4 whitespace-pre-wrap text-lg leading-7">{recipe.text || "Рецепт не заполнен"}</p>
+            <button className="mt-6 rounded-[10px] bg-black px-5 py-3 font-bold text-white" onClick={() => setRecipe(null)} type="button">
+              Закрыть
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {rejecting ? (
+        <RejectDialog
+          onClose={() => setRejecting(null)}
+          onSubmit={(stopDrinkIds, rejectReason) => {
+            patchOrder(rejecting.id, { action: "reject", stopDrinkIds, rejectReason });
+            setRejecting(null);
+          }}
+          order={rejecting}
+        />
+      ) : null}
     </section>
   );
 }
 
-function OrderTicket({ order }: { order: OrderCard }) {
+function OrderTicket({
+  onAccept,
+  onReady,
+  onRecipe,
+  onReject,
+  now,
+  order,
+}: {
+  onAccept: () => void;
+  onReady: () => void;
+  onRecipe: (recipe: { name: string; text: string }) => void;
+  onReject: () => void;
+  now: number;
+  order: Order;
+}) {
   const isAccepted = order.status === "in_progress";
+  const minutesAgo = Math.max(0, Math.floor((now - new Date(order.createdAt).getTime()) / 60000));
 
   return (
-    <article
-      className={[
-        "flex min-h-0 flex-col rounded-[18px] p-[10px]",
-        isAccepted ? "bg-[#c7efad]" : "bg-white",
-      ].join(" ")}
-    >
+    <article className={["flex min-h-0 flex-col rounded-[18px] p-[10px]", isAccepted ? "bg-[#c7efad]" : "bg-white"].join(" ")}>
       <header className="shrink-0">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-[33px] font-black leading-[0.9] tracking-normal">
-              Стол №{order.table}
-            </h1>
-            <p className="mt-2 text-[22px] leading-none">#{order.id}</p>
+            <h1 className="text-[33px] font-black leading-[0.9] tracking-normal">Стол №{order.tableNumber}</h1>
+            <p className="mt-2 text-[22px] leading-none">#{order.id.slice(0, 6)}</p>
           </div>
           <time className="rounded-full bg-black/6 px-3 py-1 text-[13px] font-semibold text-black/55">
-            {order.minutesAgo} мин
+            {minutesAgo} мин
           </time>
         </div>
       </header>
 
-      <ul className="mt-5 space-y-3">
+      <ul className="mt-5 space-y-3 overflow-hidden">
         {order.items.map((item) => (
-          <li className="flex items-center gap-[10px]" key={item.name}>
-            <span className={`size-5 rounded-full ${item.color}`} />
-            <span className="min-w-0 text-[17px] font-semibold leading-none">
-              {item.name} <strong>{item.qty} шт.</strong>
-            </span>
+          <li key={item.drinkId}>
+            <button
+              className="flex w-full items-center gap-[10px] text-left"
+              onClick={() => onRecipe({ name: item.drinkName, text: item.recipe })}
+              type="button"
+            >
+              <span className="size-5 rounded-full bg-black/12" />
+              <span className="min-w-0 text-[17px] font-semibold leading-none">
+                {item.drinkName} <strong>{item.qty} шт.</strong>
+              </span>
+            </button>
           </li>
         ))}
       </ul>
 
+      {order.comment ? (
+        <p className="mt-4 rounded-[10px] bg-black/8 px-3 py-2 text-sm font-bold leading-5">
+          {order.comment}
+        </p>
+      ) : null}
+
       <footer className="mt-auto flex shrink-0 gap-2">
-        {!isAccepted && (
-          <button
-            aria-label="Отклонить заказ"
-            className="grid size-[52px] place-items-center rounded-[9px] bg-[#ffc4c4] text-black"
-            type="button"
-          >
-            <span className="relative block size-6 rounded-full border-[3px] border-black before:absolute before:left-1/2 before:top-1/2 before:h-[3px] before:w-[25px] before:-translate-x-1/2 before:-translate-y-1/2 before:rotate-45 before:rounded-full before:bg-black" />
-          </button>
-        )}
         <button
-          className={[
-            "h-[52px] flex-1 rounded-[9px] text-[18px] font-medium",
-            isAccepted ? "bg-black/8" : "bg-[#e4f6da]",
-          ].join(" ")}
+          aria-label="Отклонить заказ"
+          className="grid size-[52px] place-items-center rounded-[9px] bg-[#ffc4c4] text-black"
+          onClick={onReject}
+          type="button"
+        >
+          ×
+        </button>
+        <button
+          className={["h-[52px] flex-1 rounded-[9px] text-[18px] font-medium", isAccepted ? "bg-black/8" : "bg-[#e4f6da]"].join(" ")}
+          onClick={isAccepted ? onReady : onAccept}
           type="button"
         >
           {isAccepted ? "Готово" : "Принять"}
         </button>
       </footer>
     </article>
+  );
+}
+
+function RejectDialog({
+  onClose,
+  onSubmit,
+  order,
+}: {
+  onClose: () => void;
+  onSubmit: (stopDrinkIds: string[], rejectReason: string) => void;
+  order: Order;
+}) {
+  const [selected, setSelected] = useState<string[]>(order.items.map((item) => item.drinkId));
+  const names = order.items
+    .filter((item) => selected.includes(item.drinkId))
+    .map((item) => `"${item.drinkName}"`);
+  const reason = names.length
+    ? `К сожалению, ${names.join(", ")} закончился`
+    : "К сожалению, напиток закончился";
+
+  return (
+    <div className="fixed inset-0 z-40 grid place-items-center bg-black/72 p-6">
+      <div className="w-full max-w-lg rounded-[18px] bg-white p-6 text-black">
+        <h2 className="text-3xl font-black">Отклонить заказ</h2>
+        <div className="mt-5 space-y-3">
+          {order.items.map((item) => (
+            <label className="flex items-center gap-3 rounded-xl bg-black/6 px-3 py-3 font-bold" key={item.drinkId}>
+              <input
+                checked={selected.includes(item.drinkId)}
+                onChange={(event) => {
+                  setSelected((current) =>
+                    event.target.checked
+                      ? [...current, item.drinkId]
+                      : current.filter((id) => id !== item.drinkId),
+                  );
+                }}
+                type="checkbox"
+              />
+              {item.drinkName}
+            </label>
+          ))}
+        </div>
+        <p className="mt-4 rounded-xl bg-[#ffc4c4] px-4 py-3 font-bold">{reason}</p>
+        <div className="mt-6 flex gap-2">
+          <button className="h-12 flex-1 rounded-[10px] bg-black/8 font-bold" onClick={onClose} type="button">
+            Отмена
+          </button>
+          <button className="h-12 flex-1 rounded-[10px] bg-black font-bold text-white" onClick={() => onSubmit(selected, reason)} type="button">
+            Отклонить
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

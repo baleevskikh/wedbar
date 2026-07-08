@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 
-import type { Drink } from "../../drinks";
+import type { Drink } from "../../../drinks";
 
 export type CartItem = {
   drink: Drink;

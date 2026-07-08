@@ -7,8 +7,8 @@ import {
   readCart,
   subscribeCart,
   writeCart,
-} from "../cart-storage";
-import { drinks } from "../drinks";
+} from "../../cart-storage";
+import { drinks } from "../../drinks";
 import { CartHeader } from "./components/cart-header";
 import { CartItemList } from "./components/cart-item-list";
 import { EmptyCart } from "./components/empty-cart";

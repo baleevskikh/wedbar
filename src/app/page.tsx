@@ -80,7 +80,7 @@ export default function HomePage() {
       onScroll={updateActiveDrink}
       ref={scrollRef}
     >
-      <header className="pointer-events-none fixed inset-x-4 top-[calc(env(safe-area-inset-top)+20px)] z-30 flex h-11 items-center justify-between gap-4 sm:left-5 sm:right-6">
+      <header className="pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+20px)] z-30 flex h-11 w-full max-w-[var(--content-max-width)] -translate-x-1/2 items-center justify-between gap-4 px-4 sm:px-6">
         <div className="text-white drop-shadow-[0_10px_28px_rgba(0,0,0,0.55)]">
           <LogoMark className="h-11 w-12" />
         </div>
@@ -88,7 +88,7 @@ export default function HomePage() {
         {totalDrinks > 0 ? (
           <Link
             aria-label={`Перейти в корзину, ${totalDrinks} напитков`}
-            className="pointer-events-auto flex h-11 max-w-[calc(100vw-96px)] items-center gap-2 rounded-full border border-white/70 bg-white pl-3.5 pr-2 text-black shadow-[0_12px_32px_rgba(0,0,0,0.24)] backdrop-blur-md transition active:scale-[0.98]"
+            className="pointer-events-auto flex h-11 max-w-[calc(100%_-_96px)] items-center gap-2 rounded-full border border-white/70 bg-white pl-3.5 pr-2 text-black shadow-[0_12px_32px_rgba(0,0,0,0.24)] backdrop-blur-md transition active:scale-[0.98]"
             href="/cart"
           >
             <CartIcon className="h-5 w-5 shrink-0" />
@@ -114,7 +114,7 @@ export default function HomePage() {
 
       <div
         aria-label="Навигация по напиткам"
-        className="fixed right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center gap-2.5 sm:right-6"
+        className="pointer-events-none fixed left-1/2 top-1/2 z-20 flex w-full max-w-[var(--content-max-width)] -translate-x-1/2 -translate-y-1/2 flex-col items-end gap-2.5 px-4 sm:px-6"
       >
         {drinks.map((drink, index) => {
           const isActive = index === activeDrinkIndex;
@@ -125,6 +125,7 @@ export default function HomePage() {
               aria-label={`Перейти к ${drink.name}`}
               className={[
                 "h-2.5 w-2.5 rounded-full border border-white/55 transition",
+                "pointer-events-auto",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
                 isActive
                   ? "scale-125 bg-white"
@@ -205,7 +206,7 @@ function DrinkSection({
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.34),rgba(0,0,0,0)_34%,rgba(0,0,0,0.86)_100%)]" />
 
       <div className="absolute bottom-0 left-0 right-0 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] sm:px-6 sm:pb-6">
-        <div className="mx-auto max-w-md">
+        <div>
           <h1 className="text-5xl font-semibold leading-[0.95] tracking-[-0.055em] text-white">
             {drink.name}
           </h1>

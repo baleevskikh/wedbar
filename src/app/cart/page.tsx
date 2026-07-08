@@ -55,7 +55,7 @@ export default function CartPage() {
 
       {selectedItems.length > 0 ? (
         <>
-          <div className="mx-auto flex min-h-[calc(100dvh-190px)] max-w-md flex-col px-4 pb-5 sm:px-6">
+          <div className="flex min-h-[calc(100dvh-190px)] flex-col px-4 pb-5 sm:px-6">
             <div className="space-y-3 pb-5">
               {selectedItems.map(({ drink, qty }) => (
                 <article
@@ -121,7 +121,7 @@ export default function CartPage() {
           </div>
 
           <footer className="sticky bottom-0 z-20 w-full bg-white/[0.08] px-4 pb-[calc(env(safe-area-inset-bottom)+14px)] pt-3 backdrop-blur-md sm:px-6">
-            <div className="mx-auto max-w-md">
+            <div>
               <SlideToOrder onComplete={submitOrderPreview} />
               {isSubmitted ? (
                 <p className="mt-3 rounded-2xl bg-white px-4 py-3 text-sm font-medium leading-5 text-black">
@@ -133,7 +133,7 @@ export default function CartPage() {
           </footer>
         </>
       ) : (
-        <div className="mx-auto flex min-h-[calc(100dvh-92px)] max-w-md flex-col px-4 pb-[calc(env(safe-area-inset-bottom)+18px)] sm:px-6">
+        <div className="flex min-h-[calc(100dvh-92px)] flex-col px-4 pb-[calc(env(safe-area-inset-bottom)+18px)] sm:px-6">
           <div className="grid flex-1 place-items-center py-16 text-center">
             <div>
               <p className="text-sm font-medium uppercase tracking-[0.18em] text-white/42">
@@ -163,7 +163,7 @@ export default function CartPage() {
 function CartHeader({ onClearCart }: { onClearCart: () => void }) {
   return (
     <header className="sticky top-0 z-20 bg-[linear-gradient(180deg,rgba(0,0,0,0.92),rgba(0,0,0,0.72)_72%,rgba(0,0,0,0))] px-4 pb-5 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-sm sm:px-6">
-      <div className="relative mx-auto flex min-h-11 max-w-md items-center justify-between">
+      <div className="relative flex min-h-11 items-center justify-between">
         <Link
           className="relative z-10 inline-flex min-h-11 items-center text-white/72 transition active:scale-[0.98] active:text-white"
           href="/"

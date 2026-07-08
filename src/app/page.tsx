@@ -1,57 +1,26 @@
 "use client";
 
-import { useRef, useState } from "react";
-import Image, { type StaticImageData } from "next/image";
+import { useRef, useState, useSyncExternalStore } from "react";
+import Image from "next/image";
+import Link from "next/link";
 
-import blueDrink from "../../images/blue.png";
-import orangeDrink from "../../images/orange.png";
-import redDrink from "../../images/red.png";
-import yellowDrink from "../../images/yellow.png";
+import {
+  getServerCartSnapshot,
+  readCart,
+  subscribeCart,
+  writeCart,
+} from "./cart-storage";
 import { LogoMark } from "./components/logo-mark";
-
-type Drink = {
-  id: string;
-  name: string;
-  description: string;
-  ingredients: string;
-  image: StaticImageData;
-};
-
-const drinks: Drink[] = [
-  {
-    id: "red",
-    name: "Ruby Sour",
-    description: "Ягодная кислинка, сухой финиш и плотная пена.",
-    ingredients: "Gin, raspberry, lemon, aquafaba",
-    image: redDrink,
-  },
-  {
-    id: "orange",
-    name: "Aperol Highball",
-    description: "Легкий аперитив с апельсином, содовой и горькой нотой.",
-    ingredients: "Aperol, orange, prosecco, soda",
-    image: orangeDrink,
-  },
-  {
-    id: "blue",
-    name: "Midnight Fizz",
-    description: "Холодный цитрус, минералы и мягкая сладость на льду.",
-    ingredients: "Vodka, blue curacao, lime, tonic",
-    image: blueDrink,
-  },
-  {
-    id: "yellow",
-    name: "Golden Collins",
-    description: "Солнечный long drink с лимоном, медом и сухой содовой.",
-    ingredients: "Gin, lemon, honey, soda",
-    image: yellowDrink,
-  },
-];
+import { drinks, type Drink } from "./drinks";
 
 export default function HomePage() {
   const scrollRef = useRef<HTMLElement>(null);
   const [activeDrinkIndex, setActiveDrinkIndex] = useState(0);
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const quantities = useSyncExternalStore(
+    subscribeCart,
+    readCart,
+    getServerCartSnapshot,
+  );
   const selectedDrinks = drinks.filter((drink) => (quantities[drink.id] ?? 0) > 0);
   const totalDrinks = selectedDrinks.reduce(
     (total, drink) => total + (quantities[drink.id] ?? 0),
@@ -59,25 +28,26 @@ export default function HomePage() {
   );
 
   function addDrink(id: string) {
-    setQuantities((current) => ({
+    const current = readCart();
+
+    writeCart({
       ...current,
       [id]: (current[id] ?? 0) + 1,
-    }));
+    });
   }
 
   function removeDrink(id: string) {
-    setQuantities((current) => {
-      const nextQty = (current[id] ?? 0) - 1;
-      const next = { ...current };
+    const current = readCart();
+    const nextQty = (current[id] ?? 0) - 1;
+    const next = { ...current };
 
-      if (nextQty > 0) {
-        next[id] = nextQty;
-      } else {
-        delete next[id];
-      }
+    if (nextQty > 0) {
+      next[id] = nextQty;
+    } else {
+      delete next[id];
+    }
 
-      return next;
-    });
+    writeCart(next);
   }
 
   function updateActiveDrink() {
@@ -110,38 +80,37 @@ export default function HomePage() {
       onScroll={updateActiveDrink}
       ref={scrollRef}
     >
-      <div className="pointer-events-none fixed left-5 top-[calc(env(safe-area-inset-top)+20px)] z-30 text-white drop-shadow-[0_10px_28px_rgba(0,0,0,0.55)]">
-        <LogoMark className="h-11 w-12" />
-      </div>
+      <header className="pointer-events-none fixed inset-x-4 top-[calc(env(safe-area-inset-top)+20px)] z-30 flex h-11 items-center justify-between gap-4 sm:left-5 sm:right-6">
+        <div className="text-white drop-shadow-[0_10px_28px_rgba(0,0,0,0.55)]">
+          <LogoMark className="h-11 w-12" />
+        </div>
 
-      {totalDrinks > 0 ? (
-        <button
-          className="fixed right-4 top-[calc(env(safe-area-inset-top)+18px)] z-30 flex h-14 max-w-[calc(100vw-96px)] items-center gap-2.5 rounded-full border border-white/15 bg-black/48 pl-4 pr-2.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.32)] backdrop-blur-md transition active:scale-[0.98] sm:right-6"
-          type="button"
-        >
-          <CartIcon className="h-6 w-6 shrink-0" />
-          <span className="text-base font-medium">Корзина</span>
-          <span className="grid h-6 min-w-6 place-items-center rounded-full bg-white px-2 text-sm font-semibold leading-none text-black">
-            {totalDrinks}
-          </span>
-          <span className="ml-0.5 flex -space-x-2">
-            {selectedDrinks.map((drink) => (
-              <span
-                className="relative h-8 w-8 overflow-hidden rounded-full border border-white/70 bg-black"
-                key={drink.id}
-              >
-                <Image
-                  src={drink.image}
-                  alt=""
-                  fill
-                  sizes="32px"
-                  className="object-cover"
-                />
-              </span>
-            ))}
-          </span>
-        </button>
-      ) : null}
+        {totalDrinks > 0 ? (
+          <Link
+            aria-label={`Перейти в корзину, ${totalDrinks} напитков`}
+            className="pointer-events-auto flex h-11 max-w-[calc(100vw-96px)] items-center gap-2 rounded-full border border-white/70 bg-white pl-3.5 pr-2 text-black shadow-[0_12px_32px_rgba(0,0,0,0.24)] backdrop-blur-md transition active:scale-[0.98]"
+            href="/cart"
+          >
+            <CartIcon className="h-5 w-5 shrink-0" />
+            <span className="ml-0.5 flex -space-x-2">
+              {selectedDrinks.map((drink) => (
+                <span
+                  className="relative h-7 w-7 overflow-hidden rounded-full border border-black/10 bg-white"
+                  key={drink.id}
+                >
+                  <Image
+                    src={drink.image}
+                    alt=""
+                    fill
+                    sizes="32px"
+                    className="object-cover"
+                  />
+                </span>
+              ))}
+            </span>
+          </Link>
+        ) : null}
+      </header>
 
       <div
         aria-label="Навигация по напиткам"

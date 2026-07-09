@@ -53,9 +53,9 @@ docker compose logs -f app
 docker compose logs -f caddy
 ```
 
-## Seed demo data
+## Prepare database
 
-Only run this if you want to populate the current database with demo drinks:
+Run this to create or update the local database schema:
 
 ```bash
 docker compose run --rm app npm run seed

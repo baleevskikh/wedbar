@@ -17,7 +17,7 @@ export function CartItemList({
   onQuantityChange: (id: string, nextQty: number) => void;
 }) {
   return (
-    <div className="flex min-h-[calc(100dvh-190px)] flex-col px-4 pb-5 sm:px-6">
+    <div className="flex flex-col px-4 pb-72 pt-5 sm:px-6">
       <div className="space-y-3 pb-5">
         {items.map(({ drink, qty }) => (
           <article

@@ -1,17 +1,37 @@
 "use client";
 
+import styles from "./order-footer.module.css";
 import { SlideToOrder } from "./slide-to-order";
 
 export function OrderFooter({
+  comment,
   disabled,
+  error,
+  onCommentChange,
   onSubmit,
 }: {
+  comment: string;
   disabled: boolean;
+  error: string | null;
+  onCommentChange: (comment: string) => void;
   onSubmit: () => void;
 }) {
   return (
-    <footer className="sticky bottom-0 z-20 w-full bg-white/[0.08] px-4 pb-[calc(env(safe-area-inset-bottom)+14px)] pt-3 backdrop-blur-md sm:px-6">
-      <div>
+    <footer className={styles.footer}>
+      <div className={styles.inner}>
+        <label className={styles.field}>
+          <span className={styles.label}>Комментарий к заказу</span>
+          <textarea
+            className={styles.textarea}
+            maxLength={300}
+            onChange={(event) => onCommentChange(event.target.value)}
+            placeholder="Например: без льда"
+            value={comment}
+          />
+        </label>
+        {error ? (
+          <p className={styles.error}>{error}</p>
+        ) : null}
         <SlideToOrder disabled={disabled} onComplete={onSubmit} />
       </div>
     </footer>

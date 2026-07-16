@@ -1,6 +1,12 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useRef, useState } from "react";
+
+import styles from "./slide-to-order.module.css";
+
+const TRACK_INSET = 4;
+const HANDLE_WIDTH = 104;
 
 export function SlideToOrder({
   disabled,
@@ -11,8 +17,9 @@ export function SlideToOrder({
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
-  const [knobOffset, setKnobOffset] = useState(0);
+  const [fillWidth, setFillWidth] = useState(HANDLE_WIDTH);
   const [isDragging, setIsDragging] = useState(false);
+  const shouldHint = !disabled && !isDragging && progress === 0;
 
   function updateProgress(clientX: number) {
     if (disabled) {
@@ -26,11 +33,16 @@ export function SlideToOrder({
     }
 
     const rect = track.getBoundingClientRect();
-    const nextProgress = ((clientX - rect.left) / rect.width) * 100;
-    const clampedProgress = Math.min(Math.max(nextProgress, 0), 100);
+    const maxFillWidth = rect.width - TRACK_INSET * 2;
+    const fillDistance = Math.max(maxFillWidth - HANDLE_WIDTH, 1);
+    const nextFillWidth = Math.min(
+      Math.max(clientX - rect.left - TRACK_INSET, HANDLE_WIDTH),
+      maxFillWidth,
+    );
+    const nextProgress = ((nextFillWidth - HANDLE_WIDTH) / fillDistance) * 100;
 
-    setProgress(clampedProgress);
-    setKnobOffset(((rect.width - 64) * clampedProgress) / 100);
+    setProgress(nextProgress);
+    setFillWidth(nextFillWidth);
   }
 
   function completeIfReady() {
@@ -39,21 +51,23 @@ export function SlideToOrder({
     }
 
     if (progress >= 84) {
+      const rect = trackRef.current?.getBoundingClientRect();
+
       setProgress(100);
-      setKnobOffset((trackRef.current?.getBoundingClientRect().width ?? 64) - 64);
+      setFillWidth(rect ? rect.width - TRACK_INSET * 2 : HANDLE_WIDTH);
       onComplete();
       return;
     }
 
     setProgress(0);
-    setKnobOffset(0);
+    setFillWidth(HANDLE_WIDTH);
   }
 
   return (
     <div
-      aria-label="Потянуть для оформления заказа"
-      className="relative h-16 touch-pan-y overflow-hidden rounded-full bg-white text-black aria-disabled:opacity-60"
+      aria-label="Тяните для заказа"
       aria-disabled={disabled}
+      className={styles.slider}
       onPointerDown={(event) => {
         setIsDragging(true);
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -77,27 +91,38 @@ export function SlideToOrder({
           if (disabled) {
             return;
           }
+          const rect = trackRef.current?.getBoundingClientRect();
+
           setProgress(100);
-          setKnobOffset((trackRef.current?.getBoundingClientRect().width ?? 64) - 64);
+          setFillWidth(rect ? rect.width - TRACK_INSET * 2 : HANDLE_WIDTH);
           onComplete();
         }
       }}
     >
+      <span className={styles.label}>
+        <span className={styles.text}>Тяните для заказа</span>
+      </span>
       <div
-        className="absolute inset-y-0 left-0 rounded-full bg-white/0"
-        style={{ width: `${progress}%` }}
-      />
-      <span className="pointer-events-none absolute inset-0 grid place-items-center text-base font-semibold">
-        Потянуть для заказа
-      </span>
-      <span
-        className="absolute left-1 top-1 grid h-14 w-14 place-items-center rounded-full bg-black text-2xl text-white shadow-[0_10px_26px_rgba(0,0,0,0.28)] transition-transform"
+        className={[styles.fill, shouldHint ? styles.hint : ""].join(" ")}
         style={{
-          transform: `translateX(${knobOffset}px)`,
-        }}
+          "--fill-width": `${fillWidth}px`,
+        } as CSSProperties}
       >
-        ›
-      </span>
+        <svg
+          aria-hidden="true"
+          className={styles.icon}
+          fill="none"
+          viewBox="0 0 32 24"
+        >
+          <path
+            d="m6 5 7 7-7 7M16 5l7 7-7 7"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="3.2"
+          />
+        </svg>
+      </div>
     </div>
   );
 }

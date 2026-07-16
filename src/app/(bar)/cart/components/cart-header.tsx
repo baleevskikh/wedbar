@@ -10,10 +10,10 @@ export function CartHeader({
   table: number;
 }) {
   return (
-    <header className="sticky top-0 z-20 bg-[linear-gradient(180deg,rgba(0,0,0,0.92),rgba(0,0,0,0.72)_72%,rgba(0,0,0,0))] px-4 pb-5 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-sm sm:px-6">
-      <div className="relative flex min-h-11 items-center justify-between">
+    <header className="sticky top-0 z-20 border-b border-white/10 bg-black/90 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+12px)] shadow-[0_16px_32px_rgba(0,0,0,0.32)] backdrop-blur-md sm:px-6">
+      <div className="relative flex h-14 items-center justify-between">
         <Link
-          className="relative z-10 inline-flex min-h-11 items-center text-white/72 transition active:scale-[0.98] active:text-white"
+          className="relative z-10 inline-grid h-11 w-11 items-center justify-items-start rounded-full text-white/72 transition active:scale-[0.98] active:bg-white/10 active:text-white"
           href={`/?table=${table}`}
           aria-label="Вернуться к меню"
         >
@@ -41,7 +41,7 @@ export function CartHeader({
         </div>
 
         <button
-          className="relative z-10 inline-flex min-h-11 items-center text-white/72 transition active:scale-[0.98] active:text-white"
+          className="relative z-10 inline-grid h-11 w-11 items-center justify-items-end rounded-full text-white/72 transition active:scale-[0.98] active:bg-white/10 active:text-white"
           onClick={onClearCart}
           type="button"
           aria-label="Очистить корзину"

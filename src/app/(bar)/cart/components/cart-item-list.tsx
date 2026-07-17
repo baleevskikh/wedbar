@@ -57,7 +57,7 @@ export function CartItemList({
 
               <div className="grid h-9 w-28 grid-cols-3 overflow-hidden rounded-full bg-white text-black">
                 <button
-                  className="text-xl text-black/62 transition active:bg-black/10"
+                  className="text-xl text-black/62 transition active:scale-[0.98] active:bg-[linear-gradient(90deg,rgba(0,0,0,0.13),rgba(0,0,0,0))]"
                   onClick={() => onQuantityChange(drink.id, qty - 1)}
                   type="button"
                   aria-label={`Уменьшить количество ${drink.name}`}
@@ -68,7 +68,7 @@ export function CartItemList({
                   {qty}
                 </span>
                 <button
-                  className="text-xl transition active:bg-black/10"
+                  className="text-xl transition active:scale-[0.98] active:bg-[linear-gradient(270deg,rgba(0,0,0,0.13),rgba(0,0,0,0))]"
                   onClick={() => onQuantityChange(drink.id, qty + 1)}
                   type="button"
                   aria-label={`Увеличить количество ${drink.name}`}

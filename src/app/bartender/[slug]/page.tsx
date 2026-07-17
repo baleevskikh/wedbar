@@ -86,7 +86,6 @@ export default function BartenderPage() {
             patchOrder(rejecting.id, { action: "reject", stopDrinkIds, rejectReason });
             setRejecting(null);
           }}
-          order={rejecting}
         />
       ) : null}
     </section>
@@ -150,12 +149,11 @@ function OrderTicket({
 
       <footer className="mt-auto flex shrink-0 gap-2">
         <button
-          aria-label="Отклонить заказ"
-          className="grid size-[52px] place-items-center rounded-[9px] bg-[#ffc4c4] text-black"
+          className="h-[52px] flex-1 rounded-[9px] bg-[#ffc4c4] text-[18px] font-medium text-black"
           onClick={onReject}
           type="button"
         >
-          ×
+          Отменить
         </button>
         <button
           className={["h-[52px] flex-1 rounded-[9px] text-[18px] font-medium", isAccepted ? "bg-black/8" : "bg-[#e4f6da]"].join(" ")}
@@ -172,48 +170,40 @@ function OrderTicket({
 function RejectDialog({
   onClose,
   onSubmit,
-  order,
 }: {
   onClose: () => void;
   onSubmit: (stopDrinkIds: string[], rejectReason: string) => void;
-  order: Order;
 }) {
-  const [selected, setSelected] = useState<string[]>(order.items.map((item) => item.drinkId));
-  const names = order.items
-    .filter((item) => selected.includes(item.drinkId))
-    .map((item) => `"${item.drinkName}"`);
-  const reason = names.length
-    ? `К сожалению, ${names.join(", ")} закончился`
-    : "К сожалению, напиток закончился";
+  const [rejectReason, setRejectReason] = useState("");
+  const canSubmit = rejectReason.trim().length > 0;
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/72 p-6">
       <div className="w-full max-w-lg rounded-[18px] bg-white p-6 text-black">
-        <h2 className="text-3xl font-black">Отклонить заказ</h2>
-        <div className="mt-5 space-y-3">
-          {order.items.map((item) => (
-            <label className="flex items-center gap-3 rounded-xl bg-black/6 px-3 py-3 font-bold" key={item.drinkId}>
-              <input
-                checked={selected.includes(item.drinkId)}
-                onChange={(event) => {
-                  setSelected((current) =>
-                    event.target.checked
-                      ? [...current, item.drinkId]
-                      : current.filter((id) => id !== item.drinkId),
-                  );
-                }}
-                type="checkbox"
-              />
-              {item.drinkName}
-            </label>
-          ))}
-        </div>
-        <p className="mt-4 rounded-xl bg-[#ffc4c4] px-4 py-3 font-bold">{reason}</p>
+        <h2 className="text-3xl font-black">Отменить заказ</h2>
+        <label className="mt-5 block">
+          <span className="text-sm font-black uppercase text-black/45">Комментарий отмены</span>
+          <textarea
+            className="mt-2 min-h-[112px] w-full resize-none rounded-xl border border-black/10 bg-black/6 px-4 py-3 text-base font-bold outline-none transition placeholder:text-black/35 focus:border-black/30 focus:bg-white"
+            maxLength={500}
+            onChange={(event) => setRejectReason(event.target.value)}
+            placeholder="Напишите причину отмены для гостя"
+            value={rejectReason}
+          />
+        </label>
         <div className="mt-6 flex gap-2">
           <button className="h-12 flex-1 rounded-[10px] bg-black/8 font-bold" onClick={onClose} type="button">
             Отмена
           </button>
-          <button className="h-12 flex-1 rounded-[10px] bg-black font-bold text-white" onClick={() => onSubmit(selected, reason)} type="button">
+          <button
+            className={[
+              "h-12 flex-1 rounded-[10px] font-bold text-white transition",
+              canSubmit ? "bg-black" : "cursor-not-allowed bg-black/25",
+            ].join(" ")}
+            disabled={!canSubmit}
+            onClick={() => onSubmit([], rejectReason.trim())}
+            type="button"
+          >
             Отклонить
           </button>
         </div>

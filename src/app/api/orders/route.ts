@@ -6,7 +6,7 @@ import { z } from "zod";
 export const runtime = "nodejs";
 
 const createOrderSchema = z.object({
-  id: z.string().min(6).max(80),
+  clientRequestId: z.string().min(6).max(80),
   table: z.number().int().positive().max(999),
   comment: z.string().max(300).optional().default(""),
   items: z.array(z.object({ drinkId: z.string().min(1), qty: z.number().int().positive().max(20) })).min(1),

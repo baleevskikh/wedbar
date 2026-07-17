@@ -11,18 +11,31 @@ const patchSchema = z.object({
   stopDrinkIds: z.array(z.string()).optional(),
 });
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  const order = getOrder(id);
-  if (!order) {
-    return errorResponse(new NotFoundError("Заказ не найден"));
+function parseOrderId(rawId: string) {
+  const id = Number(rawId);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new NotFoundError("Заказ не найден");
   }
-  return Response.json({ order });
+  return id;
+}
+
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id: rawId } = await context.params;
+    const order = getOrder(parseOrderId(rawId));
+    if (!order) {
+      return errorResponse(new NotFoundError("Заказ не найден"));
+    }
+    return Response.json({ order });
+  } catch (error) {
+    return errorResponse(error);
+  }
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await context.params;
+    const { id: rawId } = await context.params;
+    const id = parseOrderId(rawId);
     const body = patchSchema.parse(await request.json());
     const order = transitionOrder(id, body.action, {
       rejectReason: body.rejectReason,

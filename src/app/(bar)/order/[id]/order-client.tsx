@@ -39,8 +39,8 @@ export function OrderClient({ orderId, table }: { orderId: string; table: number
     const clock = setInterval(() => setNow(Date.now()), 30000);
     const events = new EventSource("/api/events");
     events.addEventListener("order.updated", (event) => {
-      const payload = JSON.parse((event as MessageEvent).data) as { orderId?: string };
-      if (payload.orderId === orderId) {
+      const payload = JSON.parse((event as MessageEvent).data) as { orderId?: number };
+      if (String(payload.orderId) === orderId) {
         loadOrder();
       }
     });
@@ -90,7 +90,7 @@ export function OrderClient({ orderId, table }: { orderId: string; table: number
 
       <section className="mt-10">
         <p className="text-sm font-semibold uppercase tracking-[0.16em] text-white/45">
-          Заказ #{orderId.slice(0, 6)}
+          Заказ #{order?.id ?? orderId}
         </p>
         <h1 className="mt-3 text-5xl font-black leading-none">{displayStatus}</h1>
         {order?.status === "rejected" ? (

@@ -28,7 +28,8 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS orders (
-    id TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_request_id TEXT NOT NULL UNIQUE,
     table_number INTEGER NOT NULL,
     comment TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL CHECK (status IN ('pending','in_progress','delivering','rejected')),
@@ -40,7 +41,7 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS order_items (
-    order_id TEXT NOT NULL REFERENCES orders(id),
+    order_id INTEGER NOT NULL REFERENCES orders(id),
     drink_id TEXT NOT NULL REFERENCES drinks(id),
     drink_name TEXT NOT NULL,
     qty INTEGER NOT NULL CHECK (qty > 0),
@@ -50,7 +51,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_drinks_menu ON drinks(is_deleted, is_stopped, position);
   CREATE INDEX IF NOT EXISTS idx_orders_status_created ON orders(status, created_at);
   CREATE INDEX IF NOT EXISTS idx_orders_table ON orders(table_number);
-  PRAGMA user_version = 1;
+  CREATE INDEX IF NOT EXISTS idx_orders_client_request ON orders(client_request_id);
+  PRAGMA user_version = 2;
 `);
 
 console.log("Database schema is ready.");

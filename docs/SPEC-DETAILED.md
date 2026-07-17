@@ -90,7 +90,8 @@ CREATE TABLE drinks (
 );
 
 CREATE TABLE orders (
-  id            TEXT PRIMARY KEY,        -- nanoid, попадает в localStorage гостя
+  id            INTEGER PRIMARY KEY AUTOINCREMENT, -- номер заказа
+  client_request_id TEXT NOT NULL UNIQUE,-- ключ идемпотентности POST
   table_number  INTEGER NOT NULL,
   comment       TEXT NOT NULL DEFAULT '',-- опциональный комментарий гостя к заказу
   status        TEXT NOT NULL CHECK (status IN
@@ -103,7 +104,7 @@ CREATE TABLE orders (
 );
 
 CREATE TABLE order_items (
-  order_id   TEXT NOT NULL REFERENCES orders(id),
+  order_id   INTEGER NOT NULL REFERENCES orders(id),
   drink_id   TEXT NOT NULL REFERENCES drinks(id),
   drink_name TEXT NOT NULL,              -- снапшот на момент заказа
   qty        INTEGER NOT NULL CHECK (qty > 0),
@@ -281,7 +282,7 @@ localStorage при первом заходе (если гость потом о
 
 | Метод и путь | Назначение | Примечания |
 | --- | --- | --- |
-| `POST /api/orders` | Создать заказ | `{ id, table, comment?, items: [{drinkId, qty}] }`; `comment` опционален, trim + лимит ~300 символов; 409 если позиция в стопе (с указанием какая) |
+| `POST /api/orders` | Создать заказ | `{ clientRequestId, table, comment?, items: [{drinkId, qty}] }`; `clientRequestId` защищает от повторной отправки; `comment` опционален, trim + лимит ~300 символов; 409 если позиция в стопе (с указанием какая) |
 | `GET /api/orders/:id` | Статус заказа для гостя | Возвращает серверный статус без мутации `delivering`; клиент сам отображает «готово» по таймеру от `ready_at` |
 | `PATCH /api/orders/:id` | Смена статуса барменом | `{ action: 'accept' \| 'ready' \| 'reject', rejectReason?, stopDrinkIds? }`; валидация переходов, 409 при гонке |
 | `GET /api/orders?active=1` | Активные заказы для панели | `pending` + `in_progress`, FIFO, limit 6 (+ количество в очереди) |

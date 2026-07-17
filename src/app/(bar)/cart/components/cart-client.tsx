@@ -1,7 +1,7 @@
 "use client";
 
 import { nanoid } from "nanoid";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -25,6 +25,7 @@ export function CartClient({ table }: { table: number }) {
   const [error, setError] = useState<string | null>(null);
   const [hasLoadedDrinks, setHasLoadedDrinks] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const clientRequestIdRef = useRef<string | null>(null);
   const quantities = useSyncExternalStore(subscribeCart, readCart, getServerCartSnapshot);
   const selectedItems = useMemo(
     () =>
@@ -62,12 +63,12 @@ export function CartClient({ table }: { table: number }) {
 
     setError(null);
     setIsSubmitting(true);
-    const orderId = nanoid(14);
+    clientRequestIdRef.current ??= nanoid(14);
     const response = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        id: orderId,
+        clientRequestId: clientRequestIdRef.current,
         table,
         comment,
         items: selectedItems.map(({ drink, qty }) => ({ drinkId: drink.id, qty })),
@@ -82,12 +83,14 @@ export function CartClient({ table }: { table: number }) {
       }
       setError(data.error?.message ?? "Не удалось отправить заказ");
       setIsSubmitting(false);
+      clientRequestIdRef.current = null;
       return;
     }
 
     writeCart({});
-    writeActiveOrderId(data.order.id);
-    addOrderToHistory(data.order.id);
+    clientRequestIdRef.current = null;
+    writeActiveOrderId(String(data.order.id));
+    addOrderToHistory(String(data.order.id));
     router.push(`/order/${data.order.id}?table=${table}`);
   }
 

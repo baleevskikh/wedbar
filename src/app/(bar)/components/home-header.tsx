@@ -59,7 +59,7 @@ export function HomeHeader({
               href={`/order/${orderId}?table=${table}`}
               key={orderId}
             >
-              Заказ #{orderId.slice(0, 5)}
+              Заказ #{orderId}
             </Link>
           ))}
         </div>

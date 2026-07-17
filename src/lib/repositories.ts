@@ -19,7 +19,8 @@ type DrinkRow = {
 };
 
 type OrderRow = {
-  id: string;
+  id: number;
+  client_request_id: string;
   table_number: number;
   comment: string;
   status: OrderStatus;
@@ -31,7 +32,7 @@ type OrderRow = {
 };
 
 type OrderItemRow = {
-  order_id: string;
+  order_id: number;
   drink_id: string;
   drink_name: string;
   image_path: string | null;
@@ -219,13 +220,13 @@ export function moveDrink(id: string, direction: "up" | "down") {
 }
 
 export function createOrder(input: {
-  id: string;
+  clientRequestId: string;
   table: number;
   comment: string;
   items: Array<{ drinkId: string; qty: number }>;
 }) {
   const db = getDb();
-  const existing = getOrder(input.id);
+  const existing = getOrderByClientRequestId(input.clientRequestId);
   if (existing) {
     return { order: existing, created: false };
   }
@@ -256,11 +257,13 @@ export function createOrder(input: {
   }
 
   const createdAt = nowIso();
+  let orderId = 0;
   const tx = db.transaction(() => {
-    db.prepare(
-      `INSERT INTO orders (id, table_number, comment, status, created_at)
+    const result = db.prepare(
+      `INSERT INTO orders (client_request_id, table_number, comment, status, created_at)
        VALUES (?, ?, ?, 'pending', ?)`,
-    ).run(input.id, input.table, input.comment, createdAt);
+    ).run(input.clientRequestId, input.table, input.comment, createdAt);
+    orderId = Number(result.lastInsertRowid);
 
     const insertItem = db.prepare(
       `INSERT INTO order_items (order_id, drink_id, drink_name, qty)
@@ -272,15 +275,15 @@ export function createOrder(input: {
       if (!drink) {
         throw new ConflictError("Позиция недоступна", { drinkId });
       }
-      insertItem.run(input.id, drinkId, drink.name, qty);
+      insertItem.run(orderId, drinkId, drink.name, qty);
     }
   });
   tx();
 
-  return { order: getOrder(input.id), created: true };
+  return { order: orderId ? getOrder(orderId) : null, created: true };
 }
 
-export function getOrder(id: string): Order | null {
+export function getOrder(id: number): Order | null {
   const db = getDb();
   const row = db.prepare("SELECT * FROM orders WHERE id = ?").get(id) as OrderRow | undefined;
   if (!row) {
@@ -298,6 +301,14 @@ export function getOrder(id: string): Order | null {
     .all(id) as OrderItemRow[];
 
   return mapOrder(row, items);
+}
+
+function getOrderByClientRequestId(clientRequestId: string): Order | null {
+  const row = getDb()
+    .prepare("SELECT id FROM orders WHERE client_request_id = ?")
+    .get(clientRequestId) as Pick<OrderRow, "id"> | undefined;
+
+  return row ? getOrder(row.id) : null;
 }
 
 export function listActiveOrders(limit = 6): ActiveOrdersResponse {
@@ -323,7 +334,7 @@ export function listActiveOrders(limit = 6): ActiveOrdersResponse {
 }
 
 export function transitionOrder(
-  id: string,
+  id: number,
   action: "accept" | "ready" | "reject",
   options: { rejectReason?: string; stopDrinkIds?: string[] } = {},
 ) {

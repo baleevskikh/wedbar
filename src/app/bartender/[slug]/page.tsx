@@ -32,7 +32,7 @@ export default function BartenderPage() {
     };
   }, []);
 
-  async function patchOrder(orderId: string, body: unknown) {
+  async function patchOrder(orderId: number, body: unknown) {
     await fetch(`/api/orders/${orderId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -117,7 +117,7 @@ function OrderTicket({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-[33px] font-black leading-[0.9] tracking-normal">Стол №{order.tableNumber}</h1>
-            <p className="mt-2 text-[22px] leading-none">#{order.id.slice(0, 6)}</p>
+            <p className="mt-2 text-[22px] leading-none">#{order.id}</p>
           </div>
           <time className="rounded-full bg-black/6 px-3 py-1 text-[13px] font-semibold text-black/55">
             {minutesAgo} мин

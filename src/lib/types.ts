@@ -15,7 +15,7 @@ export type Drink = {
 };
 
 export type OrderItem = {
-  orderId: string;
+  orderId: number;
   drinkId: string;
   drinkName: string;
   imagePath: string | null;
@@ -24,7 +24,7 @@ export type OrderItem = {
 };
 
 export type Order = {
-  id: string;
+  id: number;
   tableNumber: number;
   comment: string;
   status: OrderStatus;

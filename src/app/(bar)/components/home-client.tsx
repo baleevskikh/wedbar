@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
   getServerCartSnapshot,
-  readActiveOrderId,
   readCart,
   readOrderHistory,
   subscribeCart,
@@ -23,16 +22,12 @@ export function HomeClient({ table }: { table: number }) {
   const [history, setHistory] = useState<string[]>(() =>
     typeof window === "undefined" ? [] : readOrderHistory(),
   );
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(() =>
-    typeof window === "undefined" ? null : readActiveOrderId(),
-  );
   const quantities = useSyncExternalStore(subscribeCart, readCart, getServerCartSnapshot);
   const selectedDrinks = drinks.filter((drink) => (quantities[drink.id] ?? 0) > 0);
   const totalDrinks = selectedDrinks.reduce(
     (total, drink) => total + (quantities[drink.id] ?? 0),
     0,
   );
-  const isOrderingBlocked = Boolean(activeOrderId);
 
   async function loadDrinks() {
     const response = await fetch("/api/drinks", { cache: "no-store" });
@@ -45,7 +40,6 @@ export function HomeClient({ table }: { table: number }) {
     window.localStorage.setItem("wedbar.table", String(table));
     queueMicrotask(() => {
       setHistory(readOrderHistory());
-      setActiveOrderId(readActiveOrderId());
       void loadDrinks();
     });
 
@@ -57,28 +51,7 @@ export function HomeClient({ table }: { table: number }) {
     return () => events.close();
   }, [table]);
 
-  useEffect(() => {
-    if (!activeOrderId) {
-      return;
-    }
-
-    fetch(`/api/orders/${activeOrderId}`, { cache: "no-store" }).then((response) => {
-      if (!response.ok || response.status === 404) {
-        setActiveOrderId(null);
-        return;
-      }
-      response.json().then(({ order }) => {
-        if (order.status === "delivering" || order.status === "rejected") {
-          setActiveOrderId(null);
-        }
-      });
-    });
-  }, [activeOrderId]);
-
   function addDrink(id: string) {
-    if (isOrderingBlocked) {
-      return;
-    }
     const current = readCart();
     writeCart({ ...current, [id]: (current[id] ?? 0) + 1 });
   }
@@ -141,21 +114,12 @@ export function HomeClient({ table }: { table: number }) {
           addDrink={addDrink}
           drink={drink}
           index={index}
-          isOrderingBlocked={isOrderingBlocked}
+          isOrderingBlocked={false}
           key={drink.id}
           qty={quantities[drink.id] ?? 0}
           removeDrink={removeDrink}
         />
       ))}
-
-      {isOrderingBlocked ? (
-        <a
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+18px)] left-1/2 z-40 w-[calc(100%-32px)] max-w-[448px] -translate-x-1/2 rounded-2xl bg-white px-5 py-4 text-center font-bold text-black shadow-[0_18px_46px_rgba(0,0,0,0.38)]"
-          href={`/order/${activeOrderId}?table=${table}`}
-        >
-          У вас уже есть активный заказ
-        </a>
-      ) : null}
     </main>
   );
 }

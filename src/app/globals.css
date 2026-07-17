@@ -38,3 +38,23 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+.order-progress-runner {
+  position: absolute;
+  inset-block: 0;
+  left: -42%;
+  width: 42%;
+  border-radius: 999px;
+  background: #ffffff;
+  animation: order-progress-runner 1.35s ease-in-out infinite;
+}
+
+@keyframes order-progress-runner {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(340%);
+  }
+}

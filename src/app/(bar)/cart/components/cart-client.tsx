@@ -15,7 +15,6 @@ import {
 import type { Drink } from "../../../drinks";
 import { CartHeader } from "./cart-header";
 import { CartItemList } from "./cart-item-list";
-import { EmptyCart } from "./empty-cart";
 import { OrderFooter } from "./order-footer";
 
 export function CartClient({ table }: { table: number }) {
@@ -41,6 +40,14 @@ export function CartClient({ table }: { table: number }) {
       .then((data: { drinks: Drink[] }) => setDrinks(data.drinks))
       .finally(() => setHasLoadedDrinks(true));
   }, []);
+
+  useEffect(() => {
+    if (!hasLoadedDrinks || isSubmitting || selectedItems.length > 0) {
+      return;
+    }
+
+    router.replace(`/?table=${table}`);
+  }, [hasLoadedDrinks, isSubmitting, router, selectedItems.length, table]);
 
   function updateQuantity(id: string, nextQty: number) {
     setError(null);
@@ -120,7 +127,6 @@ export function CartClient({ table }: { table: number }) {
       ) : (
         <>
           <CartHeader onClearCart={clearCart} table={table} />
-          <EmptyCart />
         </>
       )}
     </main>

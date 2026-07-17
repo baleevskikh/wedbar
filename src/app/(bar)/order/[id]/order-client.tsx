@@ -208,8 +208,8 @@ export function OrderClient({ orderId, table }: { orderId: string; table: number
             return (
               <div
                 className={[
-                  "relative h-1.5 overflow-hidden rounded-full bg-white/24",
-                  isComplete ? "bg-white" : "",
+                  "relative h-1.5 overflow-hidden rounded-full",
+                  isComplete ? "bg-white" : "bg-white/24",
                 ].join(" ")}
                 key={step.status}
                 title={step.label}
@@ -246,7 +246,6 @@ export function OrderClient({ orderId, table }: { orderId: string; table: number
               <div className="grid min-w-0 content-between gap-4 py-0.5">
                 <div>
                   <h2 className="line-clamp-2 text-base font-semibold leading-5">{item.drinkName}</h2>
-                  <p className="mt-1 text-sm font-medium text-white/58">{item.qty} шт.</p>
                 </div>
                 <p className="justify-self-end text-base font-black">{item.qty} порц.</p>
               </div>
@@ -264,16 +263,8 @@ export function OrderClient({ orderId, table }: { orderId: string; table: number
 
       <section className="divide-y divide-white/16 border-b border-white/16">
         <div className="py-2.5">
-          <p className="text-sm font-bold text-white/48">Номер заказа</p>
-          <p className="mt-0.5 text-sm font-bold">{order?.id ?? orderId}</p>
-        </div>
-        <div className="py-2.5">
           <p className="text-sm font-bold text-white/48">Время заказа</p>
           <p className="mt-0.5 text-sm font-bold">{formatOrderDate(order?.createdAt)}</p>
-        </div>
-        <div className="py-2.5">
-          <p className="text-sm font-bold text-white/48">Куда принести</p>
-          <p className="mt-0.5 text-sm font-bold">Стол №{order?.tableNumber ?? table}</p>
         </div>
         {order?.comment ? (
           <div className="py-2.5">

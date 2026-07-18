@@ -13,6 +13,7 @@ import {
   writeCart,
 } from "../../../cart-storage";
 import type { Drink } from "../../../drinks";
+import type { Order } from "@/lib/types";
 import { CartHeader } from "./cart-header";
 import { CartItemList } from "./cart-item-list";
 import { OrderFooter } from "./order-footer";
@@ -35,10 +36,23 @@ export function CartClient({ table }: { table: number }) {
   );
 
   useEffect(() => {
-    fetch("/api/drinks", { cache: "no-store" })
+    const controller = new AbortController();
+
+    fetch("/api/drinks", { cache: "no-store", signal: controller.signal })
       .then((response) => response.json())
       .then((data: { drinks: Drink[] }) => setDrinks(data.drinks))
-      .finally(() => setHasLoadedDrinks(true));
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setHasLoadedDrinks(true);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setHasLoadedDrinks(true);
+        }
+      });
+
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -81,7 +95,7 @@ export function CartClient({ table }: { table: number }) {
         items: selectedItems.map(({ drink, qty }) => ({ drinkId: drink.id, qty })),
       }),
     });
-    const data = await response.json();
+    const data = (await response.json()) as { order: Order; error?: { message?: string; details?: { drinkId?: string } } };
 
     if (!response.ok) {
       const unavailableId = data.error?.details?.drinkId;
@@ -97,7 +111,14 @@ export function CartClient({ table }: { table: number }) {
     writeCart({});
     clientRequestIdRef.current = null;
     writeActiveOrderId(String(data.order.id));
-    addOrderToHistory(String(data.order.id));
+    addOrderToHistory(
+      String(data.order.id),
+      data.order.items.map((item) => ({
+        drinkId: item.drinkId,
+        drinkName: item.drinkName,
+        imagePath: item.imagePath,
+      })),
+    );
     router.push(`/order/${data.order.id}?table=${table}`);
   }
 

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   getServerCartSnapshot,
   readCart,
-  readOrderHistory,
+  readOrderHistoryEntries,
   subscribeCart,
   writeCart,
 } from "../../cart-storage";
@@ -19,8 +19,8 @@ export function HomeClient({ table }: { table: number }) {
   const [drinks, setDrinks] = useState<Drink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeDrinkIndex, setActiveDrinkIndex] = useState(0);
-  const [history, setHistory] = useState<string[]>(() =>
-    typeof window === "undefined" ? [] : readOrderHistory(),
+  const [history, setHistory] = useState(() =>
+    typeof window === "undefined" ? [] : readOrderHistoryEntries(),
   );
   const quantities = useSyncExternalStore(subscribeCart, readCart, getServerCartSnapshot);
   const selectedDrinks = drinks.filter((drink) => (quantities[drink.id] ?? 0) > 0);
@@ -29,26 +29,37 @@ export function HomeClient({ table }: { table: number }) {
     0,
   );
 
-  async function loadDrinks() {
-    const response = await fetch("/api/drinks", { cache: "no-store" });
-    const data = (await response.json()) as { drinks: Drink[] };
-    setDrinks(data.drinks);
-    setIsLoading(false);
+  async function loadDrinks(signal?: AbortSignal) {
+    try {
+      const response = await fetch("/api/drinks", { cache: "no-store", signal });
+      const data = (await response.json()) as { drinks: Drink[] };
+      setDrinks(data.drinks);
+      setIsLoading(false);
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        setIsLoading(false);
+      }
+    }
   }
 
   useEffect(() => {
+    const controller = new AbortController();
+
     window.localStorage.setItem("wedbar.table", String(table));
     queueMicrotask(() => {
-      setHistory(readOrderHistory());
-      void loadDrinks();
+      setHistory(readOrderHistoryEntries());
+      void loadDrinks(controller.signal);
     });
 
     const events = new EventSource("/api/events");
     events.addEventListener("menu.updated", () => {
-      loadDrinks();
+      loadDrinks(controller.signal);
     });
 
-    return () => events.close();
+    return () => {
+      controller.abort();
+      events.close();
+    };
   }, [table]);
 
   function addDrink(id: string) {

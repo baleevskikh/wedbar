@@ -1,6 +1,7 @@
 import { publish } from "@/lib/bus";
 import { errorResponse, ValidationError } from "@/lib/errors";
 import { createDrink, listAllDrinks, listMenuDrinks } from "@/lib/repositories";
+import { requireAnyStaffToken, requireStaffToken } from "@/lib/staff-auth";
 import { saveImage, saveVideo } from "@/lib/upload";
 
 export const runtime = "nodejs";
@@ -11,13 +12,21 @@ function stringField(form: FormData, key: string) {
 }
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const all = url.searchParams.get("all") === "1";
-  return Response.json({ drinks: all ? listAllDrinks() : listMenuDrinks() });
+  try {
+    const url = new URL(request.url);
+    const all = url.searchParams.get("all") === "1";
+    if (all) {
+      requireAnyStaffToken(request);
+    }
+    return Response.json({ drinks: all ? listAllDrinks() : listMenuDrinks() });
+  } catch (error) {
+    return errorResponse(error);
+  }
 }
 
 export async function POST(request: Request) {
   try {
+    requireStaffToken(request, "admin");
     const form = await request.formData();
     const name = stringField(form, "name");
     if (!name) {

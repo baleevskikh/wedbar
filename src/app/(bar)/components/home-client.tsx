@@ -18,6 +18,7 @@ export function HomeClient({ table }: { table: number }) {
   const scrollRef = useRef<HTMLElement>(null);
   const [drinks, setDrinks] = useState<Drink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeDrinkIndex, setActiveDrinkIndex] = useState(0);
   const [history, setHistory] = useState(() =>
     typeof window === "undefined" ? [] : readOrderHistoryEntries(),
@@ -32,11 +33,16 @@ export function HomeClient({ table }: { table: number }) {
   async function loadDrinks(signal?: AbortSignal) {
     try {
       const response = await fetch("/api/drinks", { cache: "no-store", signal });
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить меню");
+      }
       const data = (await response.json()) as { drinks: Drink[] };
       setDrinks(data.drinks);
+      setError(null);
       setIsLoading(false);
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
+        setError(error instanceof Error ? error.message : "Не удалось загрузить меню");
         setIsLoading(false);
       }
     }
@@ -45,7 +51,11 @@ export function HomeClient({ table }: { table: number }) {
   useEffect(() => {
     const controller = new AbortController();
 
-    window.localStorage.setItem("wedbar.table", String(table));
+    try {
+      window.localStorage.setItem("wedbar.table", String(table));
+    } catch {
+      // Table query parameter remains the source of truth.
+    }
     queueMicrotask(() => {
       setHistory(readOrderHistoryEntries());
       void loadDrinks(controller.signal);
@@ -102,6 +112,26 @@ export function HomeClient({ table }: { table: number }) {
     return (
       <main className="grid h-dvh place-items-center bg-black text-white">
         <div className="h-[72dvh] w-[82%] animate-pulse rounded-[28px] bg-white/10" />
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="grid h-dvh place-items-center bg-black px-6 text-center text-white">
+        <div>
+          <p className="rounded-xl bg-[#ffc4c4] px-4 py-3 font-bold text-black">{error}</p>
+          <button
+            className="mt-4 h-12 rounded-[10px] bg-white px-5 font-bold text-black"
+            onClick={() => {
+              setIsLoading(true);
+              void loadDrinks();
+            }}
+            type="button"
+          >
+            Обновить
+          </button>
+        </div>
       </main>
     );
   }

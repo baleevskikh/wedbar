@@ -1,6 +1,8 @@
+import { manifestResponse } from "../../../manifest-response";
+
 export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params;
-  return Response.json({
+  return manifestResponse({
     name: "WedBar Bartender",
     short_name: "Bar Panel",
     description: "Панель заказов WedBar",

@@ -2,42 +2,82 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { Drink } from "@/app/drinks";
+import { readApiJson, staffHeaders } from "@/app/staff-api";
 
 export default function DrinksPage() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug;
   const [drinks, setDrinks] = useState<Drink[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingDrinkId, setPendingDrinkId] = useState<string | null>(null);
 
-  async function loadDrinks() {
-    const response = await fetch("/api/drinks?all=1", { cache: "no-store" });
-    const data = (await response.json()) as { drinks: Drink[] };
-    setDrinks(data.drinks);
-  }
+  const loadDrinks = useCallback(async () => {
+    try {
+      const response = await fetch("/api/drinks?all=1", {
+        cache: "no-store",
+        headers: staffHeaders(slug),
+      });
+      const data = await readApiJson<{ drinks: Drink[] }>(response);
+      setDrinks(data.drinks);
+      setError(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Не удалось загрузить напитки");
+    }
+  }, [slug]);
 
   useEffect(() => {
     queueMicrotask(() => {
       void loadDrinks();
     });
-  }, []);
+  }, [loadDrinks]);
 
   async function patchDrink(id: string, body: unknown) {
-    await fetch(`/api/drinks/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    loadDrinks();
+    if (pendingDrinkId) {
+      return;
+    }
+
+    setError(null);
+    setPendingDrinkId(id);
+    try {
+      const response = await fetch(`/api/drinks/${id}`, {
+        method: "PATCH",
+        headers: staffHeaders(slug, "json"),
+        body: JSON.stringify(body),
+      });
+      await readApiJson(response);
+      await loadDrinks();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Не удалось обновить напиток");
+      void loadDrinks();
+    } finally {
+      setPendingDrinkId(null);
+    }
   }
 
   async function deleteDrink(id: string) {
+    if (pendingDrinkId) {
+      return;
+    }
     if (!window.confirm("Удалить напиток из меню?")) {
       return;
     }
-    await fetch(`/api/drinks/${id}`, { method: "DELETE" });
-    loadDrinks();
+    setError(null);
+    setPendingDrinkId(id);
+    try {
+      const response = await fetch(`/api/drinks/${id}`, {
+        method: "DELETE",
+        headers: staffHeaders(slug),
+      });
+      await readApiJson(response);
+      await loadDrinks();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Не удалось удалить напиток");
+    } finally {
+      setPendingDrinkId(null);
+    }
   }
 
   return (
@@ -51,6 +91,7 @@ export default function DrinksPage() {
           Добавить
         </Link>
       </header>
+      {error ? <p className="rounded-xl bg-[#ffc4c4] px-4 py-3 font-bold text-black">{error}</p> : null}
 
       <div className="overflow-hidden rounded-[18px] bg-white text-black">
         {drinks.map((drink, index) => (
@@ -71,6 +112,7 @@ export default function DrinksPage() {
                   "flex h-8 w-[58px] items-center rounded-full p-1 transition",
                   drink.isStopped ? "justify-start bg-black/18" : "justify-end bg-[#c7efad]",
                 ].join(" ")}
+                disabled={pendingDrinkId === drink.id}
                 onClick={() => patchDrink(drink.id, { isStopped: !drink.isStopped })}
                 type="button"
               >
@@ -78,16 +120,16 @@ export default function DrinksPage() {
               </button>
             </div>
             <div className="flex flex-wrap gap-2 xl:justify-end">
-              <button className="rounded-[9px] bg-black/6 px-3 py-2 text-sm font-bold" onClick={() => patchDrink(drink.id, { move: "up" })} type="button">
+              <button className="rounded-[9px] bg-black/6 px-3 py-2 text-sm font-bold disabled:opacity-50" disabled={pendingDrinkId === drink.id} onClick={() => patchDrink(drink.id, { move: "up" })} type="button">
                 Выше
               </button>
-              <button className="rounded-[9px] bg-black/6 px-3 py-2 text-sm font-bold" onClick={() => patchDrink(drink.id, { move: "down" })} type="button">
+              <button className="rounded-[9px] bg-black/6 px-3 py-2 text-sm font-bold disabled:opacity-50" disabled={pendingDrinkId === drink.id} onClick={() => patchDrink(drink.id, { move: "down" })} type="button">
                 Ниже
               </button>
               <Link className="rounded-[9px] bg-[#c7efad] px-3 py-2 text-sm font-bold" href={`/admin/${slug}/drinks/${drink.id}`}>
                 Править
               </Link>
-              <button className="rounded-[9px] bg-[#ffc4c4] px-3 py-2 text-sm font-bold" onClick={() => deleteDrink(drink.id)} type="button">
+              <button className="rounded-[9px] bg-[#ffc4c4] px-3 py-2 text-sm font-bold disabled:opacity-50" disabled={pendingDrinkId === drink.id} onClick={() => deleteDrink(drink.id)} type="button">
                 Удалить
               </button>
             </div>

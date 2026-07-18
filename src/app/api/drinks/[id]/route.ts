@@ -1,6 +1,7 @@
 import { publish } from "@/lib/bus";
 import { errorResponse, NotFoundError, ValidationError } from "@/lib/errors";
 import { getDrink, moveDrink, softDeleteDrink, updateDrink } from "@/lib/repositories";
+import { requireAnyStaffToken, requireStaffToken } from "@/lib/staff-auth";
 import { saveImage, saveVideo } from "@/lib/upload";
 
 export const runtime = "nodejs";
@@ -25,6 +26,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const contentType = request.headers.get("content-type") ?? "";
 
     if (contentType.includes("multipart/form-data")) {
+      requireStaffToken(request, "admin");
       const current = getDrink(id);
       if (!current || current.isDeleted) {
         throw new NotFoundError("Напиток не найден");
@@ -52,12 +54,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     };
 
     if (body.move) {
+      requireStaffToken(request, "admin");
       const drink = moveDrink(id, body.move);
       publish("menu.updated", { drinkId: id });
       return Response.json({ drink });
     }
 
     if (typeof body.isStopped === "boolean") {
+      requireAnyStaffToken(request);
       const drink = updateDrink(id, { isStopped: body.isStopped });
       publish("menu.updated", { drinkId: id });
       return Response.json({ drink });
@@ -71,6 +75,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    requireStaffToken(_request, "admin");
     const { id } = await context.params;
     softDeleteDrink(id);
     publish("menu.updated", { drinkId: id });

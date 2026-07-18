@@ -1,6 +1,7 @@
 import { publish } from "@/lib/bus";
 import { errorResponse, ValidationError } from "@/lib/errors";
 import { createOrder, listActiveOrders } from "@/lib/repositories";
+import { requireStaffToken } from "@/lib/staff-auth";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -13,12 +14,17 @@ const createOrderSchema = z.object({
 });
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  if (url.searchParams.get("active") === "1") {
-    return Response.json(listActiveOrders(6));
-  }
+  try {
+    const url = new URL(request.url);
+    if (url.searchParams.get("active") === "1") {
+      requireStaffToken(request, "bartender");
+      return Response.json(listActiveOrders(6));
+    }
 
-  return errorResponse(new ValidationError("Неподдерживаемый запрос"));
+    return errorResponse(new ValidationError("Неподдерживаемый запрос"));
+  } catch (error) {
+    return errorResponse(error);
+  }
 }
 
 export async function POST(request: Request) {

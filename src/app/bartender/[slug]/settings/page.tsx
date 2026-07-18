@@ -1,35 +1,67 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 import { mediaUrl, type Drink } from "@/app/drinks";
+import { readApiJson, staffHeaders } from "@/app/staff-api";
 
 export default function BartenderSettingsPage() {
+  const params = useParams<{ slug: string }>();
+  const slug = params.slug;
   const [drinks, setDrinks] = useState<Drink[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingDrinkId, setPendingDrinkId] = useState<string | null>(null);
 
-  async function loadDrinks() {
-    const response = await fetch("/api/drinks?all=1", { cache: "no-store" });
-    const data = (await response.json()) as { drinks: Drink[] };
-    setDrinks(data.drinks);
-  }
+  const loadDrinks = useCallback(async () => {
+    try {
+      const response = await fetch("/api/drinks?all=1", {
+        cache: "no-store",
+        headers: staffHeaders(slug),
+      });
+      const data = await readApiJson<{ drinks: Drink[] }>(response);
+      setDrinks(data.drinks);
+      setError(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Не удалось загрузить напитки");
+    }
+  }, [slug]);
 
   useEffect(() => {
     queueMicrotask(() => {
       void loadDrinks();
     });
+    const poll = setInterval(loadDrinks, 15000);
     const events = new EventSource("/api/events");
     events.addEventListener("menu.updated", loadDrinks);
-    return () => events.close();
-  }, []);
+    return () => {
+      clearInterval(poll);
+      events.close();
+    };
+  }, [loadDrinks]);
 
   async function toggleDrink(drink: Drink) {
-    await fetch(`/api/drinks/${drink.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isStopped: !drink.isStopped }),
-    });
-    loadDrinks();
+    if (pendingDrinkId) {
+      return;
+    }
+
+    setError(null);
+    setPendingDrinkId(drink.id);
+    try {
+      const response = await fetch(`/api/drinks/${drink.id}`, {
+        method: "PATCH",
+        headers: staffHeaders(slug, "json"),
+        body: JSON.stringify({ isStopped: !drink.isStopped }),
+      });
+      await readApiJson(response);
+      await loadDrinks();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Не удалось обновить стоп-лист");
+      void loadDrinks();
+    } finally {
+      setPendingDrinkId(null);
+    }
   }
 
   return (
@@ -38,6 +70,9 @@ export default function BartenderSettingsPage() {
         <header className="shrink-0">
           <h1 className="text-[34px] font-black leading-none">Настройки</h1>
           <p className="mt-2 text-lg text-white/55">Стоп-лист напитков</p>
+          {error ? (
+            <p className="mt-4 rounded-xl bg-[#ffc4c4] px-4 py-3 font-bold text-black">{error}</p>
+          ) : null}
         </header>
 
         <div className="mt-8 grid max-w-[620px] gap-3 overflow-auto">
@@ -68,6 +103,7 @@ export default function BartenderSettingsPage() {
                     "flex h-8 w-[58px] items-center rounded-full p-1 transition",
                     drink.isStopped ? "justify-start bg-black/18" : "justify-end bg-[#c7efad]",
                   ].join(" ")}
+                  disabled={pendingDrinkId === drink.id}
                   onClick={() => toggleDrink(drink)}
                   type="button"
                 >

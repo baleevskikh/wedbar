@@ -9,14 +9,26 @@ export async function GET() {
 
   const stream = new ReadableStream({
     start(controller) {
-      controller.enqueue(encoder.encode(": connected\n\n"));
+      const closeConnection = () => {
+        cleanup?.();
+        if (heartbeat) {
+          clearInterval(heartbeat);
+        }
+      };
+      const enqueue = (message: string) => {
+        try {
+          controller.enqueue(encoder.encode(message));
+        } catch {
+          closeConnection();
+        }
+      };
+
+      enqueue(": connected\n\n");
       cleanup = subscribe((type, payload) => {
-        controller.enqueue(
-          encoder.encode(`event: ${type}\ndata: ${JSON.stringify(payload)}\n\n`),
-        );
+        enqueue(`event: ${type}\ndata: ${JSON.stringify(payload)}\n\n`);
       });
       heartbeat = setInterval(() => {
-        controller.enqueue(encoder.encode(": heartbeat\n\n"));
+        enqueue(": heartbeat\n\n");
       }, 25000);
     },
     cancel() {

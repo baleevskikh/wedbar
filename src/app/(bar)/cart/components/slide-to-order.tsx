@@ -9,9 +9,11 @@ const TRACK_INSET = 4;
 const HANDLE_WIDTH = 104;
 
 export function SlideToOrder({
+  describedBy,
   disabled,
   onComplete,
 }: {
+  describedBy?: string;
   disabled: boolean;
   onComplete: () => void;
 }) {
@@ -63,12 +65,22 @@ export function SlideToOrder({
     setFillWidth(HANDLE_WIDTH);
   }
 
+  function cancelDrag() {
+    setIsDragging(false);
+    setProgress(0);
+    setFillWidth(HANDLE_WIDTH);
+  }
+
   return (
     <div
       aria-label="Тяните для заказа"
+      aria-describedby={describedBy}
       aria-disabled={disabled}
       className={styles.slider}
       onPointerDown={(event) => {
+        if (disabled) {
+          return;
+        }
         setIsDragging(true);
         event.currentTarget.setPointerCapture(event.pointerId);
         updateProgress(event.clientX);
@@ -78,13 +90,22 @@ export function SlideToOrder({
           updateProgress(event.clientX);
         }
       }}
-      onPointerUp={() => {
+      onPointerCancel={cancelDrag}
+      onPointerLeave={(event) => {
+        if (isDragging && event.buttons === 0) {
+          cancelDrag();
+        }
+      }}
+      onPointerUp={(event) => {
         setIsDragging(false);
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
         completeIfReady();
       }}
       ref={trackRef}
       role="button"
-      tabIndex={0}
+      tabIndex={disabled ? -1 : 0}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();

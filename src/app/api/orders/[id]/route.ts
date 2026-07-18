@@ -1,6 +1,7 @@
 import { publish } from "@/lib/bus";
 import { errorResponse, NotFoundError } from "@/lib/errors";
 import { getOrder, transitionOrder } from "@/lib/repositories";
+import { requireStaffToken } from "@/lib/staff-auth";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -34,6 +35,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    requireStaffToken(request, "bartender");
     const { id: rawId } = await context.params;
     const id = parseOrderId(rawId);
     const body = patchSchema.parse(await request.json());

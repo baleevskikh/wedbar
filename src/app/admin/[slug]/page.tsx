@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
+import { readApiJson, staffHeaders } from "@/app/staff-api";
 import type { Stats } from "@/lib/types";
 
 const emptyStats: Stats = {
@@ -12,23 +14,42 @@ const emptyStats: Stats = {
 };
 
 export default function AdminPage() {
+  const params = useParams<{ slug: string }>();
+  const slug = params.slug;
   const [stats, setStats] = useState<Stats>(emptyStats);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  async function loadStats() {
-    const response = await fetch("/api/stats", { cache: "no-store" });
-    const data = (await response.json()) as { stats: Stats };
-    setStats(data.stats);
-  }
+  const loadStats = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/stats", {
+        cache: "no-store",
+        headers: staffHeaders(slug),
+      });
+      const data = await readApiJson<{ stats: Stats }>(response);
+      setStats(data.stats);
+      setError(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Не удалось обновить статистику");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [slug]);
 
   useEffect(() => {
     queueMicrotask(() => {
       void loadStats();
     });
+    const poll = setInterval(loadStats, 15000);
     const events = new EventSource("/api/events");
     events.addEventListener("order.updated", loadStats);
     events.addEventListener("order.created", loadStats);
-    return () => events.close();
-  }, []);
+    return () => {
+      clearInterval(poll);
+      events.close();
+    };
+  }, [loadStats]);
 
   const summary = [
     { label: "Заказов", value: stats.summary.totalOrders, trend: "доставляемые" },
@@ -46,10 +67,11 @@ export default function AdminPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#c7efad]">WedBar Admin</p>
           <h1 className="mt-2 text-[34px] font-black leading-none sm:text-[44px] md:text-[56px]">Дашборд</h1>
         </div>
-        <button className="h-12 rounded-[10px] bg-[#c7efad] px-5 text-base font-bold text-black" onClick={loadStats} type="button">
-          Обновить
+        <button className="h-12 rounded-[10px] bg-[#c7efad] px-5 text-base font-bold text-black disabled:opacity-60" disabled={isLoading} onClick={loadStats} type="button">
+          {isLoading ? "Обновляем" : "Обновить"}
         </button>
       </header>
+      {error ? <p className="rounded-xl bg-[#ffc4c4] px-4 py-3 font-bold text-black">{error}</p> : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {summary.map((item) => (

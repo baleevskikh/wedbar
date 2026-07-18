@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 
 import { mediaUrl, type Drink } from "@/app/drinks";
+import { readApiJson, staffHeaders } from "@/app/staff-api";
 
 const fieldClass =
   "mt-2 w-full rounded-[12px] border border-black/8 bg-[#f4f4f0] px-4 py-3 text-base font-semibold text-black outline-none transition placeholder:text-black/35 focus:border-[#9bd67d] focus:bg-white";
@@ -63,21 +64,20 @@ export function DrinkForm({
     setError(null);
     setIsSaving(true);
 
-    const form = new FormData(event.currentTarget);
-    const response = await fetch(drink ? `/api/drinks/${drink.id}` : "/api/drinks", {
-      method: drink ? "PATCH" : "POST",
-      body: form,
-    });
-    const data = await response.json();
-
-    if (!response.ok) {
-      setError(data.error?.message ?? "Не удалось сохранить напиток");
+    try {
+      const form = new FormData(event.currentTarget);
+      const response = await fetch(drink ? `/api/drinks/${drink.id}` : "/api/drinks", {
+        method: drink ? "PATCH" : "POST",
+        headers: staffHeaders(slug),
+        body: form,
+      });
+      await readApiJson(response);
+      router.push(`/admin/${slug}/drinks`);
+      router.refresh();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Не удалось сохранить напиток");
       setIsSaving(false);
-      return;
     }
-
-    router.push(`/admin/${slug}/drinks`);
-    router.refresh();
   }
 
   return (

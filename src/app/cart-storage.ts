@@ -1,5 +1,5 @@
 export const CART_STORAGE_KEY = "wedbar.cart";
-export const ACTIVE_ORDER_STORAGE_KEY = "wedbar.activeOrderId";
+export const PENDING_CLIENT_REQUEST_STORAGE_KEY = "wedbar.pendingClientRequestId";
 export const ORDER_HISTORY_STORAGE_KEY = "wedbar.orderHistory";
 const CART_CHANGED_EVENT = "wedbar.cart.changed";
 
@@ -59,9 +59,17 @@ export function writeCart(quantities: CartQuantities) {
   );
 
   if (Object.keys(nextCart).length > 0) {
-    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(nextCart));
+    try {
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(nextCart));
+    } catch {
+      return;
+    }
   } else {
-    window.localStorage.removeItem(CART_STORAGE_KEY);
+    try {
+      window.localStorage.removeItem(CART_STORAGE_KEY);
+    } catch {
+      return;
+    }
   }
 
   window.dispatchEvent(new Event(CART_CHANGED_EVENT));
@@ -81,23 +89,31 @@ export function getServerCartSnapshot(): CartQuantities {
   return EMPTY_CART;
 }
 
-export function readActiveOrderId() {
+export function readPendingClientRequestId() {
   if (typeof window === "undefined") {
     return null;
   }
 
-  return window.localStorage.getItem(ACTIVE_ORDER_STORAGE_KEY);
+  try {
+    return window.localStorage.getItem(PENDING_CLIENT_REQUEST_STORAGE_KEY);
+  } catch {
+    return null;
+  }
 }
 
-export function writeActiveOrderId(orderId: string | null) {
+export function writePendingClientRequestId(clientRequestId: string | null) {
   if (typeof window === "undefined") {
     return;
   }
 
-  if (orderId) {
-    window.localStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, orderId);
-  } else {
-    window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+  try {
+    if (clientRequestId) {
+      window.localStorage.setItem(PENDING_CLIENT_REQUEST_STORAGE_KEY, clientRequestId);
+    } else {
+      window.localStorage.removeItem(PENDING_CLIENT_REQUEST_STORAGE_KEY);
+    }
+  } catch {
+    // Ordering can still continue without local id persistence.
   }
 }
 
@@ -178,5 +194,9 @@ export function addOrderToHistory(orderId: string, items: OrderHistoryEntry["ite
     ...existing.filter((entry) => entry.id !== orderId),
   ].slice(0, 12);
 
-  window.localStorage.setItem(ORDER_HISTORY_STORAGE_KEY, JSON.stringify(next));
+  try {
+    window.localStorage.setItem(ORDER_HISTORY_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // History is non-critical for placing orders.
+  }
 }

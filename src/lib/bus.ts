@@ -18,6 +18,10 @@ export function subscribe(send: Subscriber["send"]) {
 
 export function publish(type: EventType, payload: unknown = {}) {
   for (const subscriber of subscribers.values()) {
-    subscriber.send(type, payload);
+    try {
+      subscriber.send(type, payload);
+    } catch {
+      subscribers.delete(subscriber.id);
+    }
   }
 }

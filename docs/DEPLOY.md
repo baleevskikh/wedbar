@@ -17,6 +17,7 @@ cd wedbar
 cp .env.example .env
 nano .env
 mkdir -p data/uploads
+sudo chown -R 1000:1000 data
 docker compose up -d --build
 ```
 
@@ -43,6 +44,7 @@ Equivalent manual command:
 
 ```bash
 docker compose up -d --build
+docker compose exec -T app node -e "fetch('http://127.0.0.1:3000/api/drinks').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 ```
 
 ## Logs and status
@@ -69,7 +71,7 @@ Keep `data/` on persistent disk. It contains:
 - SQLite WAL files
 - uploaded images and videos in `data/uploads/`
 
-If the container cannot write to `data/`, fix ownership on the VPS:
+The app container runs as UID `1000`. Set ownership before the first start:
 
 ```bash
 sudo chown -R 1000:1000 data
@@ -77,13 +79,15 @@ sudo chown -R 1000:1000 data
 
 ## Backups
 
-Stop writes briefly before a manual backup, or take the backup during a quiet period:
+Use SQLite backup for the live database, then archive that file together with uploads:
 
 ```bash
-tar -czf wedbar-data-$(date +%F).tgz data/
+mkdir -p data/backups
+docker compose exec -T app node -e "const Database=require('better-sqlite3'); const db=new Database('/app/data/wedbar.db'); db.backup('/app/data/backups/wedbar-$(date +%F-%H%M).db').then(()=>db.close())"
+tar -czf wedbar-backup-$(date +%F-%H%M).tgz data/backups/ data/uploads/
 ```
 
-For production use, add a daily cron backup and copy the archive off the VPS.
+Copy the archive off the VPS and run at least one restore check before the event.
 
 ## Notes
 

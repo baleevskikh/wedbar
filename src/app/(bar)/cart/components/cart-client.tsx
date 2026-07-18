@@ -7,10 +7,11 @@ import { useRouter } from "next/navigation";
 import {
   addOrderToHistory,
   getServerCartSnapshot,
+  readPendingClientRequestId,
   readCart,
   subscribeCart,
-  writeActiveOrderId,
   writeCart,
+  writePendingClientRequestId,
 } from "../../../cart-storage";
 import type { Drink } from "../../../drinks";
 import type { Order } from "@/lib/types";
@@ -39,10 +40,16 @@ export function CartClient({ table }: { table: number }) {
     const controller = new AbortController();
 
     fetch("/api/drinks", { cache: "no-store", signal: controller.signal })
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Не удалось загрузить меню");
+        }
+        return response.json();
+      })
       .then((data: { drinks: Drink[] }) => setDrinks(data.drinks))
       .catch((error) => {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setError(error instanceof Error ? error.message : "Не удалось загрузить меню");
           setHasLoadedDrinks(true);
         }
       })
@@ -56,12 +63,12 @@ export function CartClient({ table }: { table: number }) {
   }, []);
 
   useEffect(() => {
-    if (!hasLoadedDrinks || isSubmitting || selectedItems.length > 0) {
+    if (!hasLoadedDrinks || isSubmitting || error || selectedItems.length > 0) {
       return;
     }
 
     router.replace(`/?table=${table}`);
-  }, [hasLoadedDrinks, isSubmitting, router, selectedItems.length, table]);
+  }, [error, hasLoadedDrinks, isSubmitting, router, selectedItems.length, table]);
 
   function updateQuantity(id: string, nextQty: number) {
     setError(null);
@@ -84,42 +91,56 @@ export function CartClient({ table }: { table: number }) {
 
     setError(null);
     setIsSubmitting(true);
-    clientRequestIdRef.current ??= nanoid(14);
-    const response = await fetch("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clientRequestId: clientRequestIdRef.current,
-        table,
-        comment,
-        items: selectedItems.map(({ drink, qty }) => ({ drinkId: drink.id, qty })),
-      }),
-    });
-    const data = (await response.json()) as { order: Order; error?: { message?: string; details?: { drinkId?: string } } };
+    clientRequestIdRef.current ??= readPendingClientRequestId() ?? nanoid(14);
+    writePendingClientRequestId(clientRequestIdRef.current);
 
-    if (!response.ok) {
-      const unavailableId = data.error?.details?.drinkId;
-      if (unavailableId) {
-        updateQuantity(unavailableId, 0);
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientRequestId: clientRequestIdRef.current,
+          table,
+          comment,
+          items: selectedItems.map(({ drink, qty }) => ({ drinkId: drink.id, qty })),
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as
+        | { order: Order; error?: { message?: string; details?: { drinkId?: string } } }
+        | null;
+
+      if (!response.ok) {
+        const unavailableId = data?.error?.details?.drinkId;
+        if (unavailableId) {
+          updateQuantity(unavailableId, 0);
+        }
+        setError(data?.error?.message ?? "Не удалось отправить заказ");
+        setIsSubmitting(false);
+        writePendingClientRequestId(null);
+        clientRequestIdRef.current = null;
+        return;
       }
-      setError(data.error?.message ?? "Не удалось отправить заказ");
-      setIsSubmitting(false);
-      clientRequestIdRef.current = null;
-      return;
-    }
 
-    writeCart({});
-    clientRequestIdRef.current = null;
-    writeActiveOrderId(String(data.order.id));
-    addOrderToHistory(
-      String(data.order.id),
-      data.order.items.map((item) => ({
-        drinkId: item.drinkId,
-        drinkName: item.drinkName,
-        imagePath: item.imagePath,
-      })),
-    );
-    router.push(`/order/${data.order.id}?table=${table}`);
+      if (!data?.order) {
+        throw new Error("Сервер не вернул заказ");
+      }
+
+      writeCart({});
+      writePendingClientRequestId(null);
+      clientRequestIdRef.current = null;
+      addOrderToHistory(
+        String(data.order.id),
+        data.order.items.map((item) => ({
+          drinkId: item.drinkId,
+          drinkName: item.drinkName,
+          imagePath: item.imagePath,
+        })),
+      );
+      router.push(`/order/${data.order.id}?table=${table}`);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Не удалось отправить заказ");
+      setIsSubmitting(false);
+    }
   }
 
   function clearCart() {
@@ -148,6 +169,11 @@ export function CartClient({ table }: { table: number }) {
       ) : (
         <>
           <CartHeader onClearCart={clearCart} table={table} />
+          {error ? (
+            <div className="grid min-h-[60dvh] place-items-center px-6 text-center">
+              <p className="rounded-xl bg-[#ffc4c4] px-4 py-3 font-bold text-black">{error}</p>
+            </div>
+          ) : null}
         </>
       )}
     </main>

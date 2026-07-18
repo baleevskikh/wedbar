@@ -16,6 +16,8 @@ export function OrderFooter({
   onCommentChange: (comment: string) => void;
   onSubmit: () => void;
 }) {
+  const errorId = error ? "order-submit-error" : undefined;
+
   return (
     <footer className={styles.footer}>
       <div className={styles.inner}>
@@ -30,9 +32,9 @@ export function OrderFooter({
           />
         </label>
         {error ? (
-          <p className={styles.error}>{error}</p>
+          <p className={styles.error} id={errorId}>{error}</p>
         ) : null}
-        <SlideToOrder disabled={disabled} onComplete={onSubmit} />
+        <SlideToOrder describedBy={errorId} disabled={disabled} onComplete={onSubmit} />
       </div>
     </footer>
   );

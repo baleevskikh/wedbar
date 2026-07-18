@@ -1,9 +1,11 @@
+import { manifestResponse } from "../../manifest-response";
+
 export function GET() {
-  return Response.json({
+  return manifestResponse({
     name: "WedBar",
     short_name: "WedBar",
     description: "Заказ коктейлей для гостей",
-    start_url: "/",
+    start_url: "/?table=1",
     scope: "/",
     display: "standalone",
     background_color: "#000000",

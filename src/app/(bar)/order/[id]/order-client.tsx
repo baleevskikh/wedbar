@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { writeActiveOrderId } from "../../../cart-storage";
 import { mediaUrl } from "../../../drinks";
 import type { Order } from "@/lib/types";
 
@@ -53,14 +52,10 @@ export function OrderClient({ orderId, table }: { orderId: string; table: number
     const response = await fetch(`/api/orders/${orderId}`, { cache: "no-store" });
     if (!response.ok) {
       setIsMissing(true);
-      writeActiveOrderId(null);
       return;
     }
     const data = (await response.json()) as { order: Order };
     setOrder(data.order);
-    if (data.order.status === "delivering" || data.order.status === "rejected") {
-      writeActiveOrderId(null);
-    }
   }, [orderId]);
 
   useEffect(() => {

@@ -278,9 +278,27 @@ export function createOrder(input: {
       insertItem.run(orderId, drinkId, drink.name, qty);
     }
   });
-  tx();
+  try {
+    tx();
+  } catch (error) {
+    if (isUniqueClientRequestConflict(error)) {
+      const order = getOrderByClientRequestId(input.clientRequestId);
+      if (order) {
+        return { order, created: false };
+      }
+    }
+    throw error;
+  }
 
   return { order: orderId ? getOrder(orderId) : null, created: true };
+}
+
+function isUniqueClientRequestConflict(error: unknown) {
+  if (!error || typeof error !== "object" || !("message" in error)) {
+    return false;
+  }
+
+  return String(error.message).includes("UNIQUE constraint failed: orders.client_request_id");
 }
 
 export function getOrder(id: number): Order | null {

@@ -1,44 +1,74 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
+import { readApiJson, staffHeaders } from "@/app/staff-api";
 import type { Order } from "@/lib/types";
 
 export default function BartenderPage() {
+  const params = useParams<{ slug: string }>();
+  const slug = params.slug;
   const [orders, setOrders] = useState<Order[]>([]);
   const [queued, setQueued] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [recipe, setRecipe] = useState<{ name: string; text: string } | null>(null);
   const [rejecting, setRejecting] = useState<Order | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
 
-  async function loadOrders() {
-    const response = await fetch("/api/orders?active=1", { cache: "no-store" });
-    const data = (await response.json()) as { orders: Order[]; queued: number };
-    setOrders(data.orders);
-    setQueued(data.queued);
-  }
+  const loadOrders = useCallback(async () => {
+    try {
+      const response = await fetch("/api/orders?active=1", {
+        cache: "no-store",
+        headers: staffHeaders(slug),
+      });
+      const data = await readApiJson<{ orders: Order[]; queued: number }>(response);
+      setOrders(data.orders);
+      setQueued(data.queued);
+      setError(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Не удалось обновить заказы");
+    }
+  }, [slug]);
 
   useEffect(() => {
     queueMicrotask(() => {
       void loadOrders();
     });
     const clock = setInterval(() => setNow(Date.now()), 30000);
+    const poll = setInterval(loadOrders, 10000);
     const events = new EventSource("/api/events");
     events.addEventListener("order.created", loadOrders);
     events.addEventListener("order.updated", loadOrders);
     return () => {
       clearInterval(clock);
+      clearInterval(poll);
       events.close();
     };
-  }, []);
+  }, [loadOrders]);
 
   async function patchOrder(orderId: number, body: unknown) {
-    await fetch(`/api/orders/${orderId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    loadOrders();
+    if (pendingOrderId) {
+      return;
+    }
+
+    setError(null);
+    setPendingOrderId(orderId);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: staffHeaders(slug, "json"),
+        body: JSON.stringify(body),
+      });
+      await readApiJson(response);
+      await loadOrders();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Не удалось изменить заказ");
+      void loadOrders();
+    } finally {
+      setPendingOrderId(null);
+    }
   }
 
   const slots = Array.from({ length: 6 }, (_, index) => orders[index] ?? null);
@@ -48,6 +78,12 @@ export default function BartenderPage() {
       {queued > 0 ? (
         <div className="fixed right-4 top-4 z-20 rounded-full bg-white px-4 py-2 text-sm font-black text-black">
           В очереди ещё {queued}
+        </div>
+      ) : null}
+
+      {error ? (
+        <div className="fixed left-[74px] top-4 z-20 rounded-full bg-[#ffc4c4] px-4 py-2 text-sm font-black text-black">
+          {error}
         </div>
       ) : null}
 
@@ -61,6 +97,7 @@ export default function BartenderPage() {
             onReject={() => setRejecting(order)}
             now={now}
             order={order}
+            pending={pendingOrderId === order.id}
           />
         ) : (
           <EmptySlot key={`empty-${index}`} />
@@ -99,6 +136,7 @@ function OrderTicket({
   onReject,
   now,
   order,
+  pending,
 }: {
   onAccept: () => void;
   onReady: () => void;
@@ -106,6 +144,7 @@ function OrderTicket({
   onReject: () => void;
   now: number;
   order: Order;
+  pending: boolean;
 }) {
   const isAccepted = order.status === "in_progress";
   const minutesAgo = Math.max(0, Math.floor((now - new Date(order.createdAt).getTime()) / 60000));
@@ -150,6 +189,7 @@ function OrderTicket({
       <footer className="mt-auto flex shrink-0 gap-2">
         <button
           className="h-[52px] flex-1 rounded-[9px] bg-[#ffc4c4] text-[18px] font-medium text-black"
+          disabled={pending}
           onClick={onReject}
           type="button"
         >
@@ -157,6 +197,7 @@ function OrderTicket({
         </button>
         <button
           className={["h-[52px] flex-1 rounded-[9px] text-[18px] font-medium", isAccepted ? "bg-black/8" : "bg-[#e4f6da]"].join(" ")}
+          disabled={pending}
           onClick={isAccepted ? onReady : onAccept}
           type="button"
         >

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 
 import { mediaUrl, type Drink } from "../../drinks";
 
@@ -19,16 +20,39 @@ export function DrinkSection({
   qty: number;
   removeDrink: (id: string) => void;
 }) {
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const posterUrl = mediaUrl(drink.imagePath);
+  const videoUrl = mediaUrl(drink.videoPath);
+
   return (
     <section className="relative h-dvh overflow-hidden [scroll-snap-align:start] [scroll-snap-stop:always]">
       <Image
-        src={mediaUrl(drink.imagePath)}
+        src={posterUrl}
         alt={drink.name}
         fill
         priority={index === 0}
         sizes="100vw"
         className="object-cover"
+        onLoad={() => setIsImageLoaded(true)}
       />
+      {videoUrl && isImageLoaded ? (
+        <video
+          aria-hidden="true"
+          autoPlay
+          className={[
+            "absolute inset-0 h-full w-full object-cover transition-opacity duration-500",
+            isVideoReady ? "opacity-100" : "opacity-0",
+          ].join(" ")}
+          loop
+          muted
+          onCanPlay={() => setIsVideoReady(true)}
+          playsInline
+          poster={posterUrl}
+          preload="auto"
+          src={videoUrl}
+        />
+      ) : null}
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.34),rgba(0,0,0,0)_34%,rgba(0,0,0,0.86)_100%)]" />
 
       <div className="absolute bottom-0 left-0 right-0 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] sm:px-6 sm:pb-6">

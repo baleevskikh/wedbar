@@ -60,13 +60,23 @@ export default function DrinksPage() {
               <strong className="block truncate text-xl">{drink.name}</strong>
               <p className="truncate text-sm font-semibold text-black/45">{drink.ingredients}</p>
             </div>
-            <button
-              className={["h-10 rounded-[9px] px-3 text-sm font-bold", drink.isStopped ? "bg-[#ffc4c4]" : "bg-[#dff1d6]"].join(" ")}
-              onClick={() => patchDrink(drink.id, { isStopped: !drink.isStopped })}
-              type="button"
-            >
-              {drink.isStopped ? "В стопе" : "В меню"}
-            </button>
+            <div className="flex items-center gap-3 xl:justify-end">
+              <span className={["min-w-[62px] text-sm font-black", drink.isStopped ? "text-black/45" : "text-black"].join(" ")}>
+                {drink.isStopped ? "В стопе" : "В меню"}
+              </span>
+              <button
+                aria-label={drink.isStopped ? "Вернуть напиток в меню" : "Добавить напиток в стоп-лист"}
+                aria-pressed={!drink.isStopped}
+                className={[
+                  "flex h-8 w-[58px] items-center rounded-full p-1 transition",
+                  drink.isStopped ? "justify-start bg-black/18" : "justify-end bg-[#c7efad]",
+                ].join(" ")}
+                onClick={() => patchDrink(drink.id, { isStopped: !drink.isStopped })}
+                type="button"
+              >
+                <span className="size-6 rounded-full bg-white shadow-sm" />
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2 xl:justify-end">
               <button className="rounded-[9px] bg-black/6 px-3 py-2 text-sm font-bold" onClick={() => patchDrink(drink.id, { move: "up" })} type="button">
                 Выше

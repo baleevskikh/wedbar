@@ -50,7 +50,7 @@ export function HomeHeader({
         </Link>
       ) : history.length > 0 ? (
         <div className="pointer-events-auto relative min-w-0 flex-1">
-          <div className="no-scrollbar flex gap-2 overflow-x-auto [-webkit-mask-image:linear-gradient(to_right,transparent_0,black_22px,black_100%)] [mask-image:linear-gradient(to_right,transparent_0,black_22px,black_100%)] [&>:first-child]:ml-auto">
+          <div className="no-scrollbar flex gap-2 overflow-x-auto pl-7 [-webkit-mask-image:linear-gradient(to_right,transparent_0,black_22px,black_100%)] [mask-image:linear-gradient(to_right,transparent_0,black_22px,black_100%)] [&>:first-child]:ml-auto">
             {history.map((order) => {
               const previewItems = order.items.slice(0, 3);
 

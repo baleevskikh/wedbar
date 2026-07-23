@@ -8,6 +8,9 @@ const NOTIFICATION_SOUND_SRC = "/sounds/order-notification.mp3";
 const NOTIFICATION_SOUND_DISABLED_KEY = "wedbar.bartender.notificationSoundDisabled";
 
 type NotificationSoundState = "pending" | "enabled" | "blocked" | "disabled";
+type WebAudioWindow = Window & {
+  webkitAudioContext?: typeof AudioContext;
+};
 
 export function BartenderShell({
   children,
@@ -26,6 +29,9 @@ export function BartenderShell({
     "Звуковые уведомления о новых заказах включатся после взаимодействия со страницей",
   );
   const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const notificationBufferRef = useRef<AudioBuffer | null>(null);
+  const notificationBufferPromiseRef = useRef<Promise<AudioBuffer> | null>(null);
   const notificationSoundStateRef =
     useRef<NotificationSoundState>(notificationSoundState);
 
@@ -37,6 +43,48 @@ export function BartenderShell({
     notificationAudioRef.current ??= new Audio(NOTIFICATION_SOUND_SRC);
     notificationAudioRef.current.preload = "auto";
     return notificationAudioRef.current;
+  }, []);
+
+  const getAudioContext = useCallback(() => {
+    if (audioContextRef.current) {
+      return audioContextRef.current;
+    }
+
+    const AudioContextConstructor =
+      window.AudioContext ?? (window as WebAudioWindow).webkitAudioContext;
+    if (!AudioContextConstructor) {
+      return null;
+    }
+
+    audioContextRef.current = new AudioContextConstructor();
+    return audioContextRef.current;
+  }, []);
+
+  const loadNotificationBuffer = useCallback(async (audioContext: AudioContext) => {
+    if (notificationBufferRef.current) {
+      return notificationBufferRef.current;
+    }
+
+    notificationBufferPromiseRef.current ??= fetch(NOTIFICATION_SOUND_SRC, {
+      cache: "force-cache",
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Notification sound request failed");
+        }
+        return response.arrayBuffer();
+      })
+      .then((arrayBuffer) => audioContext.decodeAudioData(arrayBuffer));
+
+    notificationBufferRef.current = await notificationBufferPromiseRef.current;
+    return notificationBufferRef.current;
+  }, []);
+
+  const playSilentUnlockSound = useCallback((audioContext: AudioContext) => {
+    const source = audioContext.createBufferSource();
+    source.buffer = audioContext.createBuffer(1, 1, audioContext.sampleRate);
+    source.connect(audioContext.destination);
+    source.start(0);
   }, []);
 
   const unlockNotificationSound = useCallback(async () => {
@@ -55,15 +103,17 @@ export function BartenderShell({
     }
 
     try {
-      const audio = getNotificationAudio();
-      const volume = audio.volume;
-
-      audio.volume = 0;
-      audio.currentTime = 0;
-      await audio.play();
-      audio.pause();
-      audio.currentTime = 0;
-      audio.volume = volume;
+      const audioContext = getAudioContext();
+      if (!audioContext) {
+        const audio = getNotificationAudio();
+        audio.load();
+      } else {
+        if (audioContext.state === "suspended") {
+          await audioContext.resume();
+        }
+        playSilentUnlockSound(audioContext);
+        await loadNotificationBuffer(audioContext);
+      }
 
       notificationSoundStateRef.current = "enabled";
       setNotificationSoundState("enabled");
@@ -72,10 +122,10 @@ export function BartenderShell({
       notificationSoundStateRef.current = "blocked";
       setNotificationSoundState("blocked");
       setNotificationSoundMessage(
-        "Браузер пока не разрешил звук. Уведомления включатся после следующего взаимодействия со страницей",
+        "Браузер пока не разрешил звук. Нажмите кнопку звука ещё раз",
       );
     }
-  }, [getNotificationAudio]);
+  }, [getAudioContext, getNotificationAudio, loadNotificationBuffer, playSilentUnlockSound]);
 
   const playNotificationSound = useCallback(async () => {
     if (notificationSoundStateRef.current !== "enabled") {
@@ -83,9 +133,23 @@ export function BartenderShell({
     }
 
     try {
-      const audio = getNotificationAudio();
-      audio.currentTime = 0;
-      await audio.play();
+      const audioContext = getAudioContext();
+
+      if (audioContext) {
+        if (audioContext.state === "suspended") {
+          await audioContext.resume();
+        }
+
+        const source = audioContext.createBufferSource();
+        source.buffer = await loadNotificationBuffer(audioContext);
+        source.connect(audioContext.destination);
+        source.start(0);
+        return;
+      }
+
+      const fallbackAudio = getNotificationAudio();
+      fallbackAudio.currentTime = 0;
+      await fallbackAudio.play();
     } catch {
       notificationSoundStateRef.current = "blocked";
       setNotificationSoundState("blocked");
@@ -93,20 +157,21 @@ export function BartenderShell({
         "Браузер заблокировал звук уведомлений. Нажмите кнопку звука ещё раз",
       );
     }
-  }, [getNotificationAudio]);
+  }, [getAudioContext, getNotificationAudio, loadNotificationBuffer]);
 
   function enableNotificationSound() {
     window.localStorage.removeItem(NOTIFICATION_SOUND_DISABLED_KEY);
     notificationSoundStateRef.current = "pending";
     setNotificationSoundState("pending");
     setNotificationSoundMessage(
-      "Звуковые уведомления о новых заказах включатся после взаимодействия со страницей",
+      "Звуковые уведомления о новых заказах включатся после нажатия кнопки",
     );
     void unlockNotificationSound();
   }
 
   function disableNotificationSound() {
     notificationAudioRef.current?.pause();
+    void audioContextRef.current?.suspend();
     window.localStorage.setItem(NOTIFICATION_SOUND_DISABLED_KEY, "1");
     notificationSoundStateRef.current = "disabled";
     setNotificationSoundState("disabled");
@@ -211,28 +276,28 @@ function NotificationSoundButton({
   state: NotificationSoundState;
 }) {
   const isBlocked = state === "blocked";
-  const isDisabled = state === "disabled";
-  const label = isDisabled
-    ? "Включить звуковые уведомления о новых заказах"
-    : "Выключить звуковые уведомления о новых заказах";
+  const isEnabled = state === "enabled";
+  const label = isEnabled
+    ? "Выключить звуковые уведомления о новых заказах"
+    : "Включить звуковые уведомления о новых заказах";
 
   return (
     <>
       <button
         aria-label={label}
-        aria-pressed={!isDisabled}
+        aria-pressed={isEnabled}
         className={[
           "mt-auto grid size-10 place-items-center rounded-[9px] border text-[18px] font-black transition",
-          !isDisabled
+          isEnabled
             ? "bg-white text-black"
             : "border bg-black text-white",
           isBlocked ? "border-[#ffc4c4]" : "border-white/12",
         ].join(" ")}
-        onClick={isDisabled ? onEnable : onDisable}
+        onClick={isEnabled ? onDisable : onEnable}
         title={label}
         type="button"
       >
-        <SpeakerIcon muted={isDisabled || isBlocked} />
+        <SpeakerIcon muted={!isEnabled} />
       </button>
       <span className="sr-only" role="status">
         {message}

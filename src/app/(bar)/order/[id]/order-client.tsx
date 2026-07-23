@@ -156,7 +156,7 @@ export function OrderClient({ orderId, table }: { orderId: string; table: number
   }
 
   return (
-    <main className="no-scrollbar min-h-dvh overflow-y-auto overscroll-y-contain bg-black px-4 pb-[calc(env(safe-area-inset-bottom)+18px)] text-white sm:px-6">
+    <main className="no-scrollbar h-dvh overflow-y-auto overscroll-y-contain bg-black px-4 pb-[calc(env(safe-area-inset-bottom)+18px)] text-white [-webkit-overflow-scrolling:touch] sm:px-6">
       <header className="-mx-4 sticky top-0 z-20 border-b border-white/10 bg-black/90 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+12px)] shadow-[0_16px_32px_rgba(0,0,0,0.32)] backdrop-blur-md sm:-mx-6 sm:px-6">
         <div className="relative flex h-14 items-center justify-between">
           <Link
